@@ -198,11 +198,27 @@ fleet/
    - Remove session from `state.json`
 3. If fleet crashes (SIGKILL, power loss) → `fleet clean` reconciles
 
-### Dev server port detection
+### Dev server port detection and OAuth tunnel pinning
 
-1. Check `package.json` → parse `"dev"` script for port flags
-2. Check `.fleet.toml` in repo root (optional per-project override: `dev_port = 3001`)
-3. Fall back to `3000`
+Most projects use OAuth callbacks registered to `localhost:<port>` (e.g., Supabase auth
+callbacks to `localhost:3000/api/auth/callback`). If the SSH tunnel's local port doesn't
+match the registered callback port, OAuth breaks. Therefore:
+
+1. Check `.fleet.toml` in repo root for explicit config:
+   ```toml
+   dev_port = 3000          # Port the dev server listens on remotely
+   tunnel_local_port = 3000 # Pin local tunnel to this port (for OAuth callbacks)
+   ```
+2. If `tunnel_local_port` is set, use it as the local side of the SSH tunnel
+   (`ssh -L 3000:localhost:3000 <machine>`) — this ensures `localhost:3000` on the
+   MacBook Air reaches the remote dev server and OAuth callbacks work unchanged
+3. If `tunnel_local_port` is not set, auto-assign from the 4000-4999 range
+4. If no `.fleet.toml`, check `package.json` → parse `"dev"` script for port flags
+5. Fall back to remote port `3000`
+
+**Constraint**: Only one project with a pinned `tunnel_local_port` of a given value can be
+tunneled at a time. If a second project tries to pin the same local port, fleet warns and
+falls back to auto-assign.
 
 ### Local machine special case
 
