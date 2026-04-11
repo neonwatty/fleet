@@ -12,6 +12,10 @@ import (
 	fleetexec "github.com/neonwatty/fleet/internal/exec"
 )
 
+// CommandRunner executes a command on a machine. Matches fleetexec.Run signature.
+// Extracted as a type so ScanSwap/KillGroup can be tested without SSH.
+type CommandRunner func(ctx context.Context, m config.Machine, command string) (string, error)
+
 type Process struct {
 	RSSKB   int
 	PID     int
@@ -43,6 +47,10 @@ func ProbeProcesses(ctx context.Context, m config.Machine) []ProcessGroup {
 }
 
 func KillGroup(ctx context.Context, m config.Machine, group ProcessGroup) error {
+	return KillGroupWith(ctx, m, group, fleetexec.Run)
+}
+
+func KillGroupWith(ctx context.Context, m config.Machine, group ProcessGroup, run CommandRunner) error {
 	if len(group.PIDs) == 0 {
 		return fmt.Errorf("no PIDs to kill")
 	}
@@ -53,13 +61,19 @@ func KillGroup(ctx context.Context, m config.Machine, group ProcessGroup) error 
 	}
 
 	cmd := "kill " + strings.Join(pidStrs, " ")
-	_, err := fleetexec.Run(ctx, m, cmd)
+	_, err := run(ctx, m, cmd)
 	return err
 }
 
 // ScanSwap runs vmmap --summary on the top N PIDs by RSS on the given machine
 // and populates TotalSwap on each ProcessGroup. This is slow (~1-2s per PID).
 func ScanSwap(ctx context.Context, m config.Machine, groups []ProcessGroup, maxProcs int) []ProcessGroup {
+	return ScanSwapWith(ctx, m, groups, maxProcs, fleetexec.Run)
+}
+
+func ScanSwapWith(
+	ctx context.Context, m config.Machine, groups []ProcessGroup, maxProcs int, run CommandRunner,
+) []ProcessGroup {
 	// Collect all PIDs across groups, limited to maxProcs
 	type pidGroup struct {
 		pid      int
@@ -89,7 +103,7 @@ func ScanSwap(ctx context.Context, m config.Machine, groups []ProcessGroup, maxP
 	for _, pg := range pids {
 		cmd := fmt.Sprintf("vmmap --summary %d 2>/dev/null | grep '^TOTAL ' | head -1", pg.pid)
 		scanCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		out, err := fleetexec.Run(scanCtx, m, cmd)
+		out, err := run(scanCtx, m, cmd)
 		cancel()
 		if err != nil {
 			continue

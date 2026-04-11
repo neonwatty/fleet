@@ -1,7 +1,11 @@
 package machine
 
 import (
+	"context"
+	"fmt"
 	"testing"
+
+	"github.com/neonwatty/fleet/internal/config"
 )
 
 const fixturePS = `631 19648 next-server (v15.5.14)
@@ -135,6 +139,295 @@ func TestClassifyInitializesSwapToNegOne(t *testing.T) {
 		if g.TotalSwap != -1 {
 			t.Errorf("group %q TotalSwap = %d, want -1 (not scanned)", g.Name, g.TotalSwap)
 		}
+	}
+}
+
+// --- ScanSwapWith tests ---
+
+func mockRunner(responses map[int]string) CommandRunner {
+	return func(_ context.Context, _ config.Machine, cmd string) (string, error) {
+		for pid, resp := range responses {
+			if fmt.Sprintf("vmmap --summary %d", pid) == cmd[:len(fmt.Sprintf("vmmap --summary %d", pid))] {
+				return resp, nil
+			}
+		}
+		return "", fmt.Errorf("no mock for command: %s", cmd)
+	}
+}
+
+func TestScanSwapAssignsToCorrectGroups(t *testing.T) {
+	groups := []ProcessGroup{
+		{Name: "Chrome", PIDs: []int{100, 101}, TotalSwap: -1},
+		{Name: "Claude Code", PIDs: []int{200}, TotalSwap: -1},
+	}
+
+	runner := mockRunner(map[int]string{
+		100: "TOTAL    10.7G   500M   300M   150.0M   0K   0K   0K   100",
+		101: "TOTAL    10.7G   500M   300M   50.0M    0K   0K   0K   100",
+		200: "TOTAL    10.7G   500M   300M   300.0M   0K   0K   0K   100",
+	})
+
+	m := config.Machine{Name: "test", Host: "localhost"}
+	result := ScanSwapWith(context.Background(), m, groups, 10, runner)
+
+	chrome := findGroup(result, "Chrome")
+	if chrome.TotalSwap != (150+50)*1024 {
+		t.Errorf("Chrome TotalSwap = %d KB, want %d KB", chrome.TotalSwap, (150+50)*1024)
+	}
+
+	claude := findGroup(result, "Claude Code")
+	if claude.TotalSwap != 300*1024 {
+		t.Errorf("Claude Code TotalSwap = %d KB, want %d KB", claude.TotalSwap, 300*1024)
+	}
+}
+
+func TestScanSwapRespectsMaxProcs(t *testing.T) {
+	groups := []ProcessGroup{
+		{Name: "Chrome", PIDs: []int{100, 101, 102, 103, 104}, TotalSwap: -1},
+		{Name: "Claude Code", PIDs: []int{200, 201}, TotalSwap: -1},
+	}
+
+	scannedPIDs := make(map[int]bool)
+	runner := func(_ context.Context, _ config.Machine, cmd string) (string, error) {
+		for _, pid := range []int{100, 101, 102, 103, 104, 200, 201} {
+			prefix := fmt.Sprintf("vmmap --summary %d", pid)
+			if len(cmd) >= len(prefix) && cmd[:len(prefix)] == prefix {
+				scannedPIDs[pid] = true
+				return "TOTAL    10G   500M   300M   10.0M   0K   0K   0K   100", nil
+			}
+		}
+		return "", fmt.Errorf("no mock")
+	}
+
+	m := config.Machine{Name: "test", Host: "localhost"}
+	ScanSwapWith(context.Background(), m, groups, 3, runner)
+
+	if len(scannedPIDs) != 3 {
+		t.Errorf("scanned %d PIDs, want 3 (maxProcs=3)", len(scannedPIDs))
+	}
+}
+
+func TestScanSwapHandlesVmmapErrors(t *testing.T) {
+	groups := []ProcessGroup{
+		{Name: "Chrome", PIDs: []int{100, 101}, TotalSwap: -1},
+	}
+
+	runner := func(_ context.Context, _ config.Machine, cmd string) (string, error) {
+		// PID 100 succeeds, PID 101 fails (process died)
+		if fmt.Sprintf("vmmap --summary %d", 100) == cmd[:len(fmt.Sprintf("vmmap --summary %d", 100))] {
+			return "TOTAL    10G   500M   300M   100.0M   0K   0K   0K   100", nil
+		}
+		return "", fmt.Errorf("process not found")
+	}
+
+	m := config.Machine{Name: "test", Host: "localhost"}
+	result := ScanSwapWith(context.Background(), m, groups, 10, runner)
+
+	chrome := findGroup(result, "Chrome")
+	if chrome.TotalSwap != 100*1024 {
+		t.Errorf("Chrome TotalSwap = %d KB, want %d KB (should count only successful PID)", chrome.TotalSwap, 100*1024)
+	}
+}
+
+func TestScanSwapHandlesGarbageOutput(t *testing.T) {
+	groups := []ProcessGroup{
+		{Name: "Chrome", PIDs: []int{100}, TotalSwap: -1},
+	}
+
+	runner := func(_ context.Context, _ config.Machine, _ string) (string, error) {
+		return "some garbage output that doesn't match TOTAL format", nil
+	}
+
+	m := config.Machine{Name: "test", Host: "localhost"}
+	result := ScanSwapWith(context.Background(), m, groups, 10, runner)
+
+	chrome := findGroup(result, "Chrome")
+	if chrome.TotalSwap != 0 {
+		t.Errorf("Chrome TotalSwap = %d, want 0 (garbage vmmap output)", chrome.TotalSwap)
+	}
+}
+
+func TestScanSwapEmptyGroups(t *testing.T) {
+	m := config.Machine{Name: "test", Host: "localhost"}
+	runner := func(_ context.Context, _ config.Machine, _ string) (string, error) {
+		return "", nil
+	}
+
+	result := ScanSwapWith(context.Background(), m, nil, 10, runner)
+	if len(result) != 0 {
+		t.Errorf("expected 0 groups for nil input, got %d", len(result))
+	}
+
+	result = ScanSwapWith(context.Background(), m, []ProcessGroup{}, 10, runner)
+	if len(result) != 0 {
+		t.Errorf("expected 0 groups for empty input, got %d", len(result))
+	}
+}
+
+func TestScanSwapSetsAllGroupsToZero(t *testing.T) {
+	groups := []ProcessGroup{
+		{Name: "A", PIDs: []int{1}, TotalSwap: -1},
+		{Name: "B", PIDs: []int{2}, TotalSwap: -1},
+	}
+
+	runner := func(_ context.Context, _ config.Machine, _ string) (string, error) {
+		return "TOTAL    10G   500M   300M   0K   0K   0K   0K   100", nil
+	}
+
+	m := config.Machine{Name: "test", Host: "localhost"}
+	result := ScanSwapWith(context.Background(), m, groups, 10, runner)
+
+	for _, g := range result {
+		if g.TotalSwap < 0 {
+			t.Errorf("group %q TotalSwap = %d, want >= 0 after scan", g.Name, g.TotalSwap)
+		}
+	}
+}
+
+// --- KillGroupWith tests ---
+
+func TestKillGroupBuildsCorrectCommand(t *testing.T) {
+	var capturedCmd string
+	runner := func(_ context.Context, _ config.Machine, cmd string) (string, error) {
+		capturedCmd = cmd
+		return "", nil
+	}
+
+	group := ProcessGroup{PIDs: []int{123, 456, 789}}
+	m := config.Machine{Name: "test", Host: "localhost"}
+
+	err := KillGroupWith(context.Background(), m, group, runner)
+	if err != nil {
+		t.Fatalf("KillGroupWith() error: %v", err)
+	}
+
+	expected := "kill 123 456 789"
+	if capturedCmd != expected {
+		t.Errorf("command = %q, want %q", capturedCmd, expected)
+	}
+}
+
+func TestKillGroupEmptyPIDs(t *testing.T) {
+	runner := func(_ context.Context, _ config.Machine, _ string) (string, error) {
+		t.Fatal("runner should not be called for empty PIDs")
+		return "", nil
+	}
+
+	group := ProcessGroup{PIDs: []int{}}
+	m := config.Machine{Name: "test", Host: "localhost"}
+
+	err := KillGroupWith(context.Background(), m, group, runner)
+	if err == nil {
+		t.Error("expected error for empty PIDs")
+	}
+}
+
+func TestKillGroupPropagatesRunnerError(t *testing.T) {
+	runner := func(_ context.Context, _ config.Machine, _ string) (string, error) {
+		return "", fmt.Errorf("ssh connection refused")
+	}
+
+	group := ProcessGroup{PIDs: []int{123}}
+	m := config.Machine{Name: "test", Host: "localhost"}
+
+	err := KillGroupWith(context.Background(), m, group, runner)
+	if err == nil {
+		t.Error("expected error when runner fails")
+	}
+}
+
+func TestKillGroupSinglePID(t *testing.T) {
+	var capturedCmd string
+	runner := func(_ context.Context, _ config.Machine, cmd string) (string, error) {
+		capturedCmd = cmd
+		return "", nil
+	}
+
+	group := ProcessGroup{PIDs: []int{42}}
+	m := config.Machine{Name: "test", Host: "localhost"}
+	_ = KillGroupWith(context.Background(), m, group, runner)
+
+	if capturedCmd != "kill 42" {
+		t.Errorf("command = %q, want %q", capturedCmd, "kill 42")
+	}
+}
+
+// --- Classification edge cases ---
+
+func TestClassifySortsByRSSDescending(t *testing.T) {
+	procs := parseProcesses(fixturePS)
+	groups := ClassifyProcesses(procs)
+
+	for i := 1; i < len(groups); i++ {
+		if groups[i].TotalRSS > groups[i-1].TotalRSS {
+			t.Errorf("groups not sorted: %q (%d KB) before %q (%d KB)",
+				groups[i-1].Name, groups[i-1].TotalRSS, groups[i].Name, groups[i].TotalRSS)
+		}
+	}
+}
+
+func TestClassifyDevServerDetail(t *testing.T) {
+	procs := parseProcesses(fixturePS)
+	groups := ClassifyProcesses(procs)
+
+	dev := findGroup(groups, "Dev Servers")
+	if dev == nil {
+		t.Fatal("expected Dev Servers group")
+	}
+	if dev.Detail != "next" {
+		t.Errorf("Dev Servers detail = %q, want %q", dev.Detail, "next")
+	}
+}
+
+func TestClassifyDockerKillable(t *testing.T) {
+	procs := parseProcesses(fixturePS)
+	groups := ClassifyProcesses(procs)
+
+	docker := findGroup(groups, "Docker")
+	if docker == nil {
+		t.Fatal("expected Docker group")
+	}
+	if !docker.Killable {
+		t.Error("Docker should be killable")
+	}
+}
+
+func TestClassifySystemNotKillable(t *testing.T) {
+	// Use a process big enough to cross the 50KB threshold
+	procs := []Process{
+		{RSSKB: 60 * 1024, PID: 1, Command: "/System/Library/something/big"},
+	}
+	groups := ClassifyProcesses(procs)
+	sys := findGroup(groups, "System")
+	if sys == nil {
+		t.Fatal("expected System group for large system process")
+	}
+	if sys.Killable {
+		t.Error("System should not be killable")
+	}
+}
+
+func TestClassifySystemBelowThresholdExcluded(t *testing.T) {
+	procs := []Process{
+		{RSSKB: 10 * 1024, PID: 1, Command: "/System/Library/something/small"},
+	}
+	groups := ClassifyProcesses(procs)
+	sys := findGroup(groups, "System")
+	if sys != nil {
+		t.Error("System process below 50MB threshold should be excluded")
+	}
+}
+
+func TestParseProcessesSkipsMalformed(t *testing.T) {
+	input := `631 19648 next-server
+not-a-number 123 something
+456 not-a-pid something
+incomplete
+98 16831 claude --resume
+`
+	procs := parseProcesses(input)
+	if len(procs) != 2 {
+		t.Errorf("parseProcesses() returned %d procs, want 2 (skipping malformed)", len(procs))
 	}
 }
 
