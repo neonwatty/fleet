@@ -8,6 +8,7 @@ import (
 	"github.com/neonwatty/fleet/internal/config"
 	"github.com/neonwatty/fleet/internal/machine"
 	"github.com/neonwatty/fleet/internal/session"
+	"github.com/neonwatty/fleet/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -140,9 +141,11 @@ func statusCmd() *cobra.Command {
 		Use:   "status",
 		Short: "Show fleet dashboard",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// TUI implementation in Task 11
-			fmt.Println("TUI dashboard — not yet implemented")
-			return nil
+			cfg, err := config.Load(config.DefaultPath())
+			if err != nil {
+				return fmt.Errorf("load config: %w", err)
+			}
+			return tui.Run(cfg, session.DefaultStatePath())
 		},
 	}
 }
