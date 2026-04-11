@@ -1,0 +1,107 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestLoadConfig(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	content := `
+[settings]
+port_range = [4000, 4999]
+poll_interval = 5
+stress_threshold = 20
+worktree_base = "~/fleet-work"
+bare_repo_base = "~/fleet-repos"
+
+[[machines]]
+name = "local"
+host = "localhost"
+user = ""
+enabled = true
+
+[[machines]]
+name = "mm1"
+host = "mm1"
+user = "neonwatty"
+enabled = true
+
+[[machines]]
+name = "mm2"
+host = "mm2"
+user = "jeremywatt"
+enabled = false
+`
+	os.WriteFile(path, []byte(content), 0644)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	if cfg.Settings.PortRange[0] != 4000 || cfg.Settings.PortRange[1] != 4999 {
+		t.Errorf("PortRange = %v, want [4000, 4999]", cfg.Settings.PortRange)
+	}
+	if cfg.Settings.PollInterval != 5 {
+		t.Errorf("PollInterval = %d, want 5", cfg.Settings.PollInterval)
+	}
+	if cfg.Settings.StressThreshold != 20 {
+		t.Errorf("StressThreshold = %d, want 20", cfg.Settings.StressThreshold)
+	}
+	if len(cfg.Machines) != 3 {
+		t.Fatalf("len(Machines) = %d, want 3", len(cfg.Machines))
+	}
+	if cfg.Machines[1].Name != "mm1" {
+		t.Errorf("Machines[1].Name = %q, want %q", cfg.Machines[1].Name, "mm1")
+	}
+}
+
+func TestEnabledMachines(t *testing.T) {
+	cfg := &Config{
+		Machines: []Machine{
+			{Name: "local", Host: "localhost", Enabled: true},
+			{Name: "mm1", Host: "mm1", Enabled: true},
+			{Name: "mm2", Host: "mm2", Enabled: false},
+		},
+	}
+
+	enabled := cfg.EnabledMachines()
+	if len(enabled) != 2 {
+		t.Fatalf("len(EnabledMachines) = %d, want 2", len(enabled))
+	}
+	if enabled[1].Name != "mm1" {
+		t.Errorf("enabled[1].Name = %q, want %q", enabled[1].Name, "mm1")
+	}
+}
+
+func TestIsLocal(t *testing.T) {
+	local := Machine{Name: "local", Host: "localhost"}
+	remote := Machine{Name: "mm1", Host: "mm1"}
+
+	if !local.IsLocal() {
+		t.Error("expected localhost to be local")
+	}
+	if remote.IsLocal() {
+		t.Error("expected mm1 to not be local")
+	}
+}
+
+func TestExpandPath(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	result := ExpandPath("~/fleet-work")
+	expected := filepath.Join(home, "fleet-work")
+	if result != expected {
+		t.Errorf("ExpandPath(~/fleet-work) = %q, want %q", result, expected)
+	}
+}
+
+func TestLoadConfigMissingFile(t *testing.T) {
+	_, err := Load("/nonexistent/config.toml")
+	if err == nil {
+		t.Error("expected error for missing file")
+	}
+}
