@@ -17,7 +17,7 @@ func renderMachinesPanel(healths []machine.Health, _ int) string {
 
 	for _, h := range healths {
 		if !h.Online {
-			b.WriteString(fmt.Sprintf("%-10s ", h.Name))
+			fmt.Fprintf(&b, "%-10s ", h.Name)
 			b.WriteString(offlineStyle.Render(fmt.Sprintf("%-8s", "offline")))
 			b.WriteString("\n")
 			continue
