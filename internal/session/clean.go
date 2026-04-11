@@ -13,7 +13,7 @@ import (
 type SessionStatus int
 
 const (
-	StatusAlive  SessionStatus = iota
+	StatusAlive SessionStatus = iota
 	StatusOrphan
 	StatusStale
 )
@@ -148,4 +148,3 @@ func truncateString(s string, max int) string {
 	}
 	return s[:max] + "..."
 }
-
