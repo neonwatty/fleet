@@ -1,0 +1,21 @@
+# Fleet configuration
+# Copy to ~/.fleet/config.toml and adjust for your setup.
+
+[settings]
+port_range = [4000, 4999]       # Local port range for tunnel auto-assignment
+poll_interval = 5               # TUI refresh interval in seconds
+stress_threshold = 20           # Score below this triggers confirmation prompt
+worktree_base = "~/fleet-work"  # Remote directory for worktrees
+bare_repo_base = "~/fleet-repos" # Remote directory for bare clones
+
+[[machines]]
+name = "local"
+host = "localhost"
+user = ""
+enabled = true
+
+# [[machines]]
+# name = "mm1"
+# host = "mm1"        # Must match an SSH config Host entry
+# user = "youruser"
+# enabled = true

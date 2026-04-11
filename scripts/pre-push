@@ -1,0 +1,26 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "=== 1/5 Format check ==="
+UNFORMATTED=$(gofmt -l . 2>&1 || true)
+if [ -n "$UNFORMATTED" ]; then
+  echo "Unformatted files:"
+  echo "$UNFORMATTED"
+  echo "Run: gofmt -w ."
+  exit 1
+fi
+
+echo "=== 2/5 Lint ==="
+golangci-lint run ./...
+
+echo "=== 3/5 Vet ==="
+go vet ./...
+
+echo "=== 4/5 Unit tests ==="
+go test -race -count=1 ./...
+
+echo "=== 5/5 Build ==="
+go build -o /dev/null ./cmd/fleet/
+
+echo ""
+echo "All checks passed."

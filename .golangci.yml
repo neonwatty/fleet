@@ -1,0 +1,36 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - unused
+    - unparam
+    - ineffassign
+    - gofmt
+    - goimports
+    - misspell
+    - govet
+    - staticcheck
+    - errcheck
+    - gosec
+    - gocyclo
+    - funlen
+    - lll
+    - goconst
+    - dupl
+    - prealloc
+
+linters-settings:
+  funlen:
+    lines: 100
+    statements: 50
+  lll:
+    line-length: 120
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

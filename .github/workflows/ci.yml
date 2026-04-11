@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-checks:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)"
+      - name: Vet
+        run: go vet ./...
+      - name: Check go.mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  unit-tests:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Run tests with coverage
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Coverage summary
+        run: go tool cover -func=coverage.out | tail -1
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+          retention-days: 30
+
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Build
+        run: go build -o bin/fleet ./cmd/fleet/
+      - name: Verify binary
+        run: bin/fleet --version
+
+  file-size-check:
+    runs-on: macos-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check file sizes
+        run: |
+          OVERSIZED=$(find . -name '*.go' -exec awk 'END { if (NR > 300) print FILENAME ": " NR " lines" }' {} \;)
+          if [ -n "$OVERSIZED" ]; then
+            echo "Files exceeding 300 lines:"
+            echo "$OVERSIZED"
+            exit 1
+          fi
+
+  vulnerability-check:
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Run vulnerability check
+        run: govulncheck ./...
+
+  ci-gate:
+    runs-on: macos-latest
+    timeout-minutes: 2
+    needs: [quality-checks, unit-tests, build, file-size-check, vulnerability-check]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          if [[ "${{ needs.quality-checks.result }}" != "success" ]] || \
+             [[ "${{ needs.unit-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.build.result }}" != "success" ]] || \
+             [[ "${{ needs.file-size-check.result }}" != "success" ]] || \
+             [[ "${{ needs.vulnerability-check.result }}" != "success" ]]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
