@@ -73,10 +73,10 @@ Bubble Tea TUI with four panels, live-refreshing every 5 seconds:
 
 | Panel | Content |
 |-------|---------|
-| Machines | hostname, CPU%, mem%, swap%, Claude count, online/offline |
+| Machines | hostname, status, mem avail%, swap used, CC instances, health label |
 | Sessions | project, machine, branch, worktree path, uptime |
 | Tunnels | local port → remote machine:port, associated project |
-| Actions | kill session, open tunnel URL in browser, SSH into machine |
+| Processes | memory consumers on selected machine, grouped by category, with kill action |
 
 ### `fleet clean`
 
@@ -219,6 +219,39 @@ match the registered callback port, OAuth breaks. Therefore:
 **Constraint**: Only one project with a pinned `tunnel_local_port` of a given value can be
 tunneled at a time. If a second project tries to pin the same local port, fleet warns and
 falls back to auto-assign.
+
+### Memory consumers panel
+
+The TUI includes a **Processes** panel that shows what's consuming memory on the
+currently selected machine (highlighted in the Machines panel). This answers the
+question "why is this machine stressed?" at a glance.
+
+Processes are grouped into categories and sorted by total RSS within each group:
+
+| Category | How detected | Example |
+|----------|-------------|---------|
+| Claude Code | command = `claude` | `claude --dangerously-skip-permissions` |
+| Dev Servers | command contains `next-server`, `vite`, `node.*dev` | `next-server (v16.2.1)` |
+| Chrome | command path contains `Google Chrome` | 12 procs, 1.4GB total |
+| Docker | command path contains `Docker` | 3 procs, 300MB total |
+| System | macOS system services above 50MB RSS | `mediaanalysisd`, `mds_stores` |
+
+Display format — one line per category, aggregated:
+
+```
+PROCESSES on mm3                          RSS
+Claude Code    2 instances               411MB
+Dev Servers    2 (next-server)           343MB
+Chrome         14 tabs/procs            1.4GB
+Docker         3 procs                  300MB
+System         3 services               290MB
+```
+
+**Kill action**: With a category row selected, pressing `k` prompts for confirmation,
+then kills all processes in that category on the remote machine via SSH
+(`kill <pid> <pid> ...`). Claude Code instances prompt with the session name.
+Chrome and Docker prompt with a warning since they affect the whole machine.
+System processes cannot be killed (grayed out).
 
 ### Local machine special case
 
