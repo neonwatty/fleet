@@ -7,7 +7,7 @@ import (
 	"github.com/neonwatty/fleet/internal/machine"
 )
 
-func renderMachinesPanel(healths []machine.Health, width int) string {
+func renderMachinesPanel(healths []machine.Health, _ int) string {
 	var b strings.Builder
 
 	header := fmt.Sprintf("%-10s %-8s %-10s %-10s %-8s %-6s",

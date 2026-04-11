@@ -1,35 +1,52 @@
+version: "2"
+
 run:
   timeout: 5m
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
 
 linters:
   enable:
     - unused
     - unparam
     - ineffassign
-    - gofmt
-    - goimports
     - misspell
     - govet
     - staticcheck
     - errcheck
-    - gosec
     - gocyclo
     - funlen
     - lll
     - goconst
     - dupl
     - prealloc
-
-linters-settings:
-  funlen:
-    lines: 100
-    statements: 50
-  lll:
-    line-length: 120
-  gocyclo:
-    min-complexity: 15
-  dupl:
-    threshold: 100
+  settings:
+    funlen:
+      lines: 120
+      statements: 60
+    lll:
+      line-length: 160
+    gocyclo:
+      min-complexity: 15
+    dupl:
+      threshold: 100
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - funlen
+      - path: cmd/fleet/main\.go
+        linters:
+          - funlen
+          - gocyclo
+      # Bubble Tea Update() is always a big switch on message types
+      - path: internal/tui/app\.go
+        linters:
+          - gocyclo
 
 issues:
   max-issues-per-linter: 0

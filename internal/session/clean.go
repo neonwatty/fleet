@@ -88,12 +88,12 @@ func Clean(ctx context.Context, cfg *config.Config, statePath string) error {
 		fmt.Printf("  Cleaning orphan: %s on %s (%s)\n", sess.Project, sess.Machine, sess.WorktreePath)
 
 		rmCmd := fmt.Sprintf("rm -rf %s", sess.WorktreePath)
-		fleetexec.Run(ctx, m, rmCmd)
+		_, _ = fleetexec.Run(ctx, m, rmCmd)
 
 		org, repo := splitProject(sess.Project)
 		bareDir := filepath.Join("~", "fleet-repos", org, repo+".git")
 		pruneCmd := fmt.Sprintf("git -C %s worktree prune 2>/dev/null || true", bareDir)
-		fleetexec.Run(ctx, m, pruneCmd)
+		_, _ = fleetexec.Run(ctx, m, pruneCmd)
 	}
 
 	state.Sessions = alive

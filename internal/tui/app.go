@@ -31,7 +31,6 @@ type model struct {
 	width        int
 	height       int
 	pollInterval time.Duration
-	err          error
 }
 
 type tickMsg time.Time
@@ -74,14 +73,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activePanel == panelTunnels && m.state != nil {
 				tunneled := tunneledSessions(m.state.Sessions)
 				if m.selectedRow < len(tunneled) {
-					openInBrowser(tunneled[m.selectedRow].Tunnel.LocalPort)
+					_ = openInBrowser(tunneled[m.selectedRow].Tunnel.LocalPort)
 				}
 			}
 		case "x":
 			if m.activePanel == panelSessions && m.state != nil {
 				if m.selectedRow < len(m.state.Sessions) {
 					sess := m.state.Sessions[m.selectedRow]
-					killSession(context.Background(), m.cfg, sess, m.statePath)
+					_ = killSession(context.Background(), m.cfg, sess, m.statePath)
 					return m, refresh(m.cfg, m.statePath)
 				}
 			}

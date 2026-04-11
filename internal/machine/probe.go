@@ -23,13 +23,17 @@ type Health struct {
 	Error       string
 }
 
+const errUnexpectedFormat = "unexpected probe output format"
+
 func Probe(ctx context.Context, m config.Machine) Health {
 	h := Health{Name: m.Name}
 
 	probeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	cmd := "vm_stat; echo '===SWAP==='; sysctl vm.swapusage; echo '===MEM==='; sysctl -n hw.memsize; echo '===CLAUDE==='; ps aux | grep '[c]laude' || true"
+	cmd := "vm_stat; echo '===SWAP==='; sysctl vm.swapusage; " +
+		"echo '===MEM==='; sysctl -n hw.memsize; " +
+		"echo '===CLAUDE==='; ps aux | grep '[c]laude' || true"
 	out, err := fleetexec.Run(probeCtx, m, cmd)
 	if err != nil {
 		h.Error = err.Error()
@@ -40,21 +44,21 @@ func Probe(ctx context.Context, m config.Machine) Health {
 
 	parts := strings.Split(out, "===SWAP===")
 	if len(parts) < 2 {
-		h.Error = "unexpected probe output format"
+		h.Error = errUnexpectedFormat
 		return h
 	}
 	vmstatOut := parts[0]
 
 	rest := strings.Split(parts[1], "===MEM===")
 	if len(rest) < 2 {
-		h.Error = "unexpected probe output format"
+		h.Error = errUnexpectedFormat
 		return h
 	}
 	swapOut := strings.TrimSpace(rest[0])
 
 	rest2 := strings.Split(rest[1], "===CLAUDE===")
 	if len(rest2) < 2 {
-		h.Error = "unexpected probe output format"
+		h.Error = errUnexpectedFormat
 		return h
 	}
 	memsizeOut := strings.TrimSpace(rest2[0])

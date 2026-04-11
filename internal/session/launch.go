@@ -164,8 +164,8 @@ func detectRemotePorts(ctx context.Context, m config.Machine, worktree string) (
 		if err != nil {
 			return 3000, 0
 		}
-		defer os.RemoveAll(tmpDir)
-		os.WriteFile(filepath.Join(tmpDir, ".fleet.toml"), []byte(fleetToml), 0644)
+		defer os.RemoveAll(tmpDir) //nolint:errcheck
+		_ = os.WriteFile(filepath.Join(tmpDir, ".fleet.toml"), []byte(fleetToml), 0644)
 		return tunnel.DetectPorts(tmpDir)
 	}
 
@@ -177,8 +177,8 @@ func detectRemotePorts(ctx context.Context, m config.Machine, worktree string) (
 		if err != nil {
 			return 3000, 0
 		}
-		defer os.RemoveAll(tmpDir)
-		os.WriteFile(filepath.Join(tmpDir, "package.json"), []byte(pkgJSON), 0644)
+		defer os.RemoveAll(tmpDir) //nolint:errcheck
+		_ = os.WriteFile(filepath.Join(tmpDir, "package.json"), []byte(pkgJSON), 0644)
 		return tunnel.DetectPorts(tmpDir)
 	}
 

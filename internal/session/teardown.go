@@ -16,24 +16,24 @@ import (
 func Teardown(ctx context.Context, m config.Machine, sess Session, tun *tunnel.Tunnel, statePath string) {
 	// 1. Stop tunnel
 	if tun != nil {
-		tun.Stop()
+		_ = tun.Stop()
 	}
 
 	// 2. Remove remote worktree
 	if sess.WorktreePath != "" {
 		rmCmd := fmt.Sprintf("rm -rf %s", sess.WorktreePath)
-		fleetexec.Run(ctx, m, rmCmd)
+		_, _ = fleetexec.Run(ctx, m, rmCmd)
 
 		// Prune worktrees on the bare repo
 		org, repo := splitProject(sess.Project)
 		home := "~"
 		bareDir := filepath.Join(home, "fleet-repos", org, repo+".git")
 		pruneCmd := fmt.Sprintf("git -C %s worktree prune", bareDir)
-		fleetexec.Run(ctx, m, pruneCmd)
+		_, _ = fleetexec.Run(ctx, m, pruneCmd)
 	}
 
 	// 3. Remove session from state
-	RemoveSession(statePath, sess.ID)
+	_ = RemoveSession(statePath, sess.ID)
 }
 
 func WithSignalCleanup(

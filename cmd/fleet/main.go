@@ -90,7 +90,7 @@ func launchCmd() *cobra.Command {
 					fmt.Printf("\nAll machines are stressed. Best: %s (score: %.1f)\n", best.Name, score)
 					fmt.Print("Launch anyway? [y/n]: ")
 					var answer string
-					fmt.Scanln(&answer)
+					_, _ = fmt.Scanln(&answer)
 					if answer != "y" && answer != "Y" {
 						fmt.Println("Aborted.")
 						return nil

@@ -31,10 +31,11 @@ func Run(ctx context.Context, m config.Machine, command string) (string, error) 
 }
 
 func buildSSHArgs(m config.Machine, command string) []string {
-	args := []string{
+	args := make([]string, 0, 6)
+	args = append(args,
 		"-o", "ConnectTimeout=5",
 		"-o", "StrictHostKeyChecking=accept-new",
-	}
+	)
 	args = append(args, m.Host, command)
 	return args
 }
