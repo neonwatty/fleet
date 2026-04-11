@@ -33,7 +33,7 @@ func Probe(ctx context.Context, m config.Machine) Health {
 
 	cmd := "vm_stat; echo '===SWAP==='; sysctl vm.swapusage; " +
 		"echo '===MEM==='; sysctl -n hw.memsize; " +
-		"echo '===CLAUDE==='; ps aux | grep '[c]laude' || true"
+		"echo '===CLAUDE==='; ps -eo comm | grep -c '^claude$' || echo 0"
 	out, err := fleetexec.Run(probeCtx, m, cmd)
 	if err != nil {
 		h.Error = err.Error()
@@ -158,18 +158,7 @@ func parseMemsize(out string) (uint64, error) {
 }
 
 func parseClaudeCount(out string) int {
-	count := 0
-	for _, line := range strings.Split(out, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		if strings.Contains(line, "grep") {
-			continue
-		}
-		if strings.Contains(line, "claude") {
-			count++
-		}
-	}
-	return count
+	s := strings.TrimSpace(out)
+	n, _ := strconv.Atoi(s)
+	return n
 }

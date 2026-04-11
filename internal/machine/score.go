@@ -18,9 +18,22 @@ func Score(h Health) float64 {
 		swapPenalty = (h.SwapUsedMB / h.SwapTotalMB) * 100 * 0.5
 	}
 
-	claudePenalty := float64(h.ClaudeCount) * 10
+	claudePenalty := float64(h.ClaudeCount) * 5
 
 	return availPct - swapPenalty - claudePenalty
+}
+
+func ScoreLabel(score float64) string {
+	switch {
+	case score >= 30:
+		return "idle"
+	case score >= 10:
+		return "ok"
+	case score >= -20:
+		return "busy"
+	default:
+		return "stressed"
+	}
 }
 
 func PickBest(healths []Health) (Health, float64) {

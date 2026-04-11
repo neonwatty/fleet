@@ -60,13 +60,16 @@ func TestParseMemsize(t *testing.T) {
 }
 
 func TestParseClaudeCount(t *testing.T) {
-	output := `  501 12345  0.5  1.2 claude
-  501 12346  0.3  0.8 claude --resume
-  501 99999  0.1  0.2 grep claude
-`
-	count := parseClaudeCount(output)
-	if count != 2 {
-		t.Errorf("count = %d, want 2 (should exclude grep)", count)
+	count := parseClaudeCount("3\n")
+	if count != 3 {
+		t.Errorf("count = %d, want 3", count)
+	}
+}
+
+func TestParseClaudeCountZero(t *testing.T) {
+	count := parseClaudeCount("0\n")
+	if count != 0 {
+		t.Errorf("count = %d, want 0", count)
 	}
 }
 

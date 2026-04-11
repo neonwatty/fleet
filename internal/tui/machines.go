@@ -10,16 +10,15 @@ import (
 func renderMachinesPanel(healths []machine.Health, _ int) string {
 	var b strings.Builder
 
-	header := fmt.Sprintf("%-10s %-8s %-10s %-10s %-8s %-6s",
-		"MACHINE", "STATUS", "MEM AVAIL", "SWAP USED", "CLAUDE", "SCORE")
+	header := fmt.Sprintf("%-10s %-8s %-10s %-10s %-5s %-10s",
+		"MACHINE", "STATUS", "MEM AVAIL", "SWAP USED", "CC", "HEALTH")
 	b.WriteString(headerStyle.Render(header))
 	b.WriteString("\n")
 
 	for _, h := range healths {
 		if !h.Online {
-			line := fmt.Sprintf("%-10s %-8s",
-				h.Name, offlineStyle.Render("offline"))
-			b.WriteString(line)
+			b.WriteString(fmt.Sprintf("%-10s ", h.Name))
+			b.WriteString(offlineStyle.Render(fmt.Sprintf("%-8s", "offline")))
 			b.WriteString("\n")
 			continue
 		}
@@ -27,22 +26,41 @@ func renderMachinesPanel(healths []machine.Health, _ int) string {
 		availPct := float64(h.AvailMemory) / float64(h.TotalMemory) * 100
 		score := machine.Score(h)
 
-		status := onlineStyle.Render("online")
-		memStr := fmt.Sprintf("%.0f%%", availPct)
-		swapStr := fmt.Sprintf("%.0fMB", h.SwapUsedMB)
-		claudeStr := fmt.Sprintf("%d", h.ClaudeCount)
-		scoreStr := fmt.Sprintf("%.1f", score)
+		memRaw := fmt.Sprintf("%.0f%%", availPct)
+		swapRaw := fmt.Sprintf("%.1fGB", h.SwapUsedMB/1024)
+		claudeRaw := fmt.Sprintf("%d", h.ClaudeCount)
 
+		// Pad plain text first, then apply styles to padded strings
+		// so ANSI escape codes don't break column alignment
+		nameCol := fmt.Sprintf("%-10s ", h.Name)
+		statusCol := onlineStyle.Render(fmt.Sprintf("%-8s", "online")) + " "
+		claudeCol := fmt.Sprintf("%-5s ", claudeRaw)
+		label := machine.ScoreLabel(score)
+		var healthCol string
+		switch label {
+		case "idle":
+			healthCol = onlineStyle.Render(fmt.Sprintf("%-10s", label))
+		case "ok":
+			healthCol = onlineStyle.Render(fmt.Sprintf("%-10s", label))
+		case "busy":
+			healthCol = warnStyle.Render(fmt.Sprintf("%-10s", label))
+		default:
+			healthCol = offlineStyle.Render(fmt.Sprintf("%-10s", label))
+		}
+
+		var memCol, swapCol string
 		if availPct < 25 {
-			memStr = warnStyle.Render(memStr)
+			memCol = warnStyle.Render(fmt.Sprintf("%-10s", memRaw)) + " "
+		} else {
+			memCol = fmt.Sprintf("%-10s ", memRaw)
 		}
-		if h.SwapUsedMB > 4000 {
-			swapStr = warnStyle.Render(swapStr)
+		if h.SwapUsedMB > 4096 {
+			swapCol = warnStyle.Render(fmt.Sprintf("%-10s", swapRaw)) + " "
+		} else {
+			swapCol = fmt.Sprintf("%-10s ", swapRaw)
 		}
 
-		line := fmt.Sprintf("%-10s %-8s %-10s %-10s %-8s %-6s",
-			h.Name, status, memStr, swapStr, claudeStr, scoreStr)
-		b.WriteString(line)
+		b.WriteString(nameCol + statusCol + memCol + swapCol + claudeCol + healthCol)
 		b.WriteString("\n")
 	}
 
