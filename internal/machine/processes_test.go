@@ -66,6 +66,78 @@ func TestClassifyEmpty(t *testing.T) {
 	}
 }
 
+func TestParseVmmapSwap(t *testing.T) {
+	tests := []struct {
+		name   string
+		line   string
+		wantKB int
+	}{
+		{
+			name:   "megabytes",
+			line:   "TOTAL                             10.7G   536.6M   311.3M   204.5M       0K      32K       0K     3628",
+			wantKB: 209408, // 204.5 * 1024
+		},
+		{
+			name:   "gigabytes",
+			line:   "TOTAL                             10.7G   536.6M   311.3M   1.2G       0K      32K       0K     3628",
+			wantKB: 1258291, // 1.2 * 1024 * 1024
+		},
+		{
+			name:   "kilobytes",
+			line:   "TOTAL                             10.7G   536.6M   311.3M   512K       0K      32K       0K     3628",
+			wantKB: 512,
+		},
+		{
+			name:   "zero",
+			line:   "TOTAL                             10.7G   536.6M   311.3M   0K       0K      32K       0K     3628",
+			wantKB: 0,
+		},
+		{
+			name:   "empty",
+			line:   "",
+			wantKB: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseVmmapSwap(tt.line)
+			if got != tt.wantKB {
+				t.Errorf("parseVmmapSwap() = %d, want %d", got, tt.wantKB)
+			}
+		})
+	}
+}
+
+func TestParseSizeToKB(t *testing.T) {
+	tests := []struct {
+		input  string
+		wantKB int
+	}{
+		{"204.5M", 209408},
+		{"1.2G", 1258291},
+		{"512K", 512},
+		{"0K", 0},
+		{"", 0},
+	}
+	for _, tt := range tests {
+		got := parseSizeToKB(tt.input)
+		if got != tt.wantKB {
+			t.Errorf("parseSizeToKB(%q) = %d, want %d", tt.input, got, tt.wantKB)
+		}
+	}
+}
+
+func TestClassifyInitializesSwapToNegOne(t *testing.T) {
+	procs := parseProcesses(fixturePS)
+	groups := ClassifyProcesses(procs)
+	for _, g := range groups {
+		if g.TotalSwap != -1 {
+			t.Errorf("group %q TotalSwap = %d, want -1 (not scanned)", g.Name, g.TotalSwap)
+		}
+	}
+}
+
 func findGroup(groups []ProcessGroup, name string) *ProcessGroup {
 	for i := range groups {
 		if groups[i].Name == name {

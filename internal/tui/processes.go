@@ -18,8 +18,8 @@ func renderProcessesPanel(machineName string, groups []machine.ProcessGroup, sel
 
 	var b strings.Builder
 
-	header := fmt.Sprintf("%-14s %-6s %-10s %-20s",
-		"CATEGORY", "COUNT", "RSS", "DETAIL")
+	header := fmt.Sprintf("%-14s %-6s %-10s %-10s %-20s",
+		"CATEGORY", "COUNT", "RSS", "SWAP", "DETAIL")
 	b.WriteString(headerStyle.Render(header))
 	b.WriteString("\n")
 
@@ -50,7 +50,16 @@ func renderProcessesPanel(machineName string, groups []machine.ProcessGroup, sel
 			rssCol = fmt.Sprintf("%-10s ", rss)
 		}
 
-		line := categoryCol + countCol + rssCol + detailCol
+		var swapCol string
+		if g.TotalSwap < 0 {
+			swapCol = dimStyle.Render(fmt.Sprintf("%-10s", "—")) + " "
+		} else if g.TotalSwap > 500*1024 {
+			swapCol = warnStyle.Render(fmt.Sprintf("%-10s", formatRSS(g.TotalSwap))) + " "
+		} else {
+			swapCol = fmt.Sprintf("%-10s ", formatRSS(g.TotalSwap))
+		}
+
+		line := categoryCol + countCol + rssCol + swapCol + detailCol
 
 		if i == selectedRow {
 			if !g.Killable {

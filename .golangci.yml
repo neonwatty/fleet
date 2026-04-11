@@ -43,10 +43,11 @@ linters:
         linters:
           - funlen
           - gocyclo
-      # Bubble Tea Update() is always a big switch on message types
+      # Bubble Tea Update()/View() are always big switch/render functions
       - path: internal/tui/app\.go
         linters:
           - gocyclo
+          - funlen
 
 issues:
   max-issues-per-linter: 0

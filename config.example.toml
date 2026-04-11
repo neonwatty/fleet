@@ -7,6 +7,7 @@ poll_interval = 5               # TUI refresh interval in seconds
 stress_threshold = 20           # Score below this triggers confirmation prompt
 worktree_base = "~/fleet-work"  # Remote directory for worktrees
 bare_repo_base = "~/fleet-repos" # Remote directory for bare clones
+swap_scan_procs = 10             # Max processes to scan for swap (via vmmap, ~1-2s each)
 
 [[machines]]
 name = "local"

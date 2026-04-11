@@ -20,6 +20,7 @@ type Settings struct {
 	StressThreshold int    `toml:"stress_threshold"`
 	WorktreeBase    string `toml:"worktree_base"`
 	BareRepoBase    string `toml:"bare_repo_base"`
+	SwapScanProcs   int    `toml:"swap_scan_procs"`
 }
 
 type Machine struct {
@@ -42,6 +43,9 @@ func Load(path string) (*Config, error) {
 
 	cfg.Settings.WorktreeBase = ExpandPath(cfg.Settings.WorktreeBase)
 	cfg.Settings.BareRepoBase = ExpandPath(cfg.Settings.BareRepoBase)
+	if cfg.Settings.SwapScanProcs == 0 {
+		cfg.Settings.SwapScanProcs = 10
+	}
 
 	return &cfg, nil
 }

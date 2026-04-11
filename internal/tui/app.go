@@ -34,6 +34,8 @@ type model struct {
 	width           int
 	height          int
 	pollInterval    time.Duration
+	swapScanning    bool   // true while a swap scan is in progress
+	swapScanTarget  string // machine name being scanned
 }
 
 type tickMsg time.Time
@@ -41,6 +43,10 @@ type refreshMsg struct {
 	healths   []machine.Health
 	state     *session.State
 	processes map[string][]machine.ProcessGroup
+}
+type swapScanMsg struct {
+	machineName string
+	groups      []machine.ProcessGroup
 }
 
 func NewModel(cfg *config.Config, statePath string) model {
@@ -94,6 +100,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, refresh(m.cfg, m.statePath)
 				}
 			}
+		case "s":
+			if m.activePanel == panelProcesses && !m.swapScanning {
+				machineName := m.selectedMachineName()
+				mach := m.findMachine(machineName)
+				groups := m.processes[machineName]
+				if mach != nil && len(groups) > 0 {
+					m.swapScanning = true
+					m.swapScanTarget = machineName
+					return m, scanSwap(m.cfg, *mach, groups)
+				}
+			}
 		case "d":
 			if m.activePanel == panelProcesses && m.processes != nil {
 				machineName := m.selectedMachineName()
@@ -116,6 +133,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.healths = msg.healths
 		m.state = msg.state
 		m.processes = msg.processes
+	case swapScanMsg:
+		m.swapScanning = false
+		m.swapScanTarget = ""
+		if m.processes == nil {
+			m.processes = make(map[string][]machine.ProcessGroup)
+		}
+		m.processes[msg.machineName] = msg.groups
 	}
 	return m, nil
 }
@@ -159,7 +183,11 @@ func (m model) View() string {
 	processesContent := renderProcessesPanel(machineName, procGroups, procSelectedRow)
 	processesPanel := wrapPanel(processesTitle, processesContent, panelWidth, m.activePanel == panelProcesses)
 
-	help := helpStyle.Render("tab: switch panel | j/k: navigate | o: open in browser | x: kill session | d: kill process group | q: quit")
+	helpParts := "tab: switch panel | j/k: navigate | o: open in browser | x: kill session | s: scan swap | d: kill process group | q: quit"
+	if m.swapScanning {
+		helpParts = fmt.Sprintf("Scanning swap on %s... | q: quit", m.swapScanTarget)
+	}
+	help := helpStyle.Render(helpParts)
 
 	return fmt.Sprintf("%s\n\n%s\n%s\n%s\n%s\n\n%s",
 		title, machinesPanel, sessionsPanel, tunnelsPanel, processesPanel, help)
@@ -197,6 +225,15 @@ func refresh(cfg *config.Config, statePath string) tea.Cmd {
 		}
 
 		return refreshMsg{healths: healths, state: state, processes: processes}
+	}
+}
+
+func scanSwap(cfg *config.Config, m config.Machine, groups []machine.ProcessGroup) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		scanned := machine.ScanSwap(ctx, m, groups, cfg.Settings.SwapScanProcs)
+		return swapScanMsg{machineName: m.Name, groups: scanned}
 	}
 }
 
