@@ -1,0 +1,107 @@
+package session
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+)
+
+type State struct {
+	Sessions []Session `json:"sessions"`
+}
+
+type Session struct {
+	ID           string     `json:"id"`
+	Project      string     `json:"project"`
+	Machine      string     `json:"machine"`
+	Branch       string     `json:"branch"`
+	WorktreePath string     `json:"worktree_path"`
+	Tunnel       TunnelInfo `json:"tunnel"`
+	StartedAt    time.Time  `json:"started_at"`
+	PID          int        `json:"pid"`
+}
+
+type TunnelInfo struct {
+	LocalPort  int `json:"local_port"`
+	RemotePort int `json:"remote_port"`
+}
+
+func DefaultStatePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".fleet", "state.json")
+}
+
+func LoadState(path string) (*State, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &State{}, nil
+		}
+		return nil, fmt.Errorf("read state: %w", err)
+	}
+
+	var s State
+	if err := json.Unmarshal(data, &s); err != nil {
+		return nil, fmt.Errorf("parse state: %w", err)
+	}
+	return &s, nil
+}
+
+func Save(path string, s *State) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create state dir: %w", err)
+	}
+
+	data, err := json.MarshalIndent(s, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal state: %w", err)
+	}
+
+	return os.WriteFile(path, data, 0644)
+}
+
+func AddSession(path string, sess Session) error {
+	s, err := LoadState(path)
+	if err != nil {
+		return err
+	}
+	s.Sessions = append(s.Sessions, sess)
+	return Save(path, s)
+}
+
+func RemoveSession(path string, id string) error {
+	s, err := LoadState(path)
+	if err != nil {
+		return err
+	}
+
+	filtered := make([]Session, 0, len(s.Sessions))
+	for _, sess := range s.Sessions {
+		if sess.ID != id {
+			filtered = append(filtered, sess)
+		}
+	}
+	s.Sessions = filtered
+	return Save(path, s)
+}
+
+func (s *State) UsedPorts() map[int]bool {
+	ports := make(map[int]bool)
+	for _, sess := range s.Sessions {
+		if sess.Tunnel.LocalPort > 0 {
+			ports[sess.Tunnel.LocalPort] = true
+		}
+	}
+	return ports
+}
+
+func GenerateID() string {
+	b := make([]byte, 4)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
