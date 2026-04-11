@@ -18,25 +18,29 @@ const (
 	panelMachines panel = iota
 	panelSessions
 	panelTunnels
+	panelProcesses
 	panelCount
 )
 
 type model struct {
-	cfg          *config.Config
-	statePath    string
-	healths      []machine.Health
-	state        *session.State
-	activePanel  panel
-	selectedRow  int
-	width        int
-	height       int
-	pollInterval time.Duration
+	cfg             *config.Config
+	statePath       string
+	healths         []machine.Health
+	state           *session.State
+	processes       map[string][]machine.ProcessGroup // keyed by machine name
+	activePanel     panel
+	selectedRow     int
+	selectedMachine int // which machine is selected in Machines panel
+	width           int
+	height          int
+	pollInterval    time.Duration
 }
 
 type tickMsg time.Time
 type refreshMsg struct {
-	healths []machine.Health
-	state   *session.State
+	healths   []machine.Health
+	state     *session.State
+	processes map[string][]machine.ProcessGroup
 }
 
 func NewModel(cfg *config.Config, statePath string) model {
@@ -65,9 +69,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selectedRow = 0
 		case "j", "down":
 			m.selectedRow++
+			if m.activePanel == panelMachines {
+				m.selectedMachine = m.selectedRow
+			}
 		case "k", "up":
 			if m.selectedRow > 0 {
 				m.selectedRow--
+				if m.activePanel == panelMachines {
+					m.selectedMachine = m.selectedRow
+				}
 			}
 		case "o":
 			if m.activePanel == panelTunnels && m.state != nil {
@@ -84,6 +94,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, refresh(m.cfg, m.statePath)
 				}
 			}
+		case "d":
+			if m.activePanel == panelProcesses && m.processes != nil {
+				machineName := m.selectedMachineName()
+				groups := m.processes[machineName]
+				if m.selectedRow < len(groups) && groups[m.selectedRow].Killable {
+					mach := m.findMachine(machineName)
+					if mach != nil {
+						_ = machine.KillGroup(context.Background(), *mach, groups[m.selectedRow])
+						return m, refresh(m.cfg, m.statePath)
+					}
+				}
+			}
 		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -93,6 +115,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case refreshMsg:
 		m.healths = msg.healths
 		m.state = msg.state
+		m.processes = msg.processes
 	}
 	return m, nil
 }
@@ -118,10 +141,28 @@ func (m model) View() string {
 	tunnelsContent := renderTunnelsPanel(sessions)
 	tunnelsPanel := wrapPanel("Tunnels", tunnelsContent, panelWidth, m.activePanel == panelTunnels)
 
-	help := helpStyle.Render("tab: switch panel | j/k: navigate | o: open in browser | x: kill session | q: quit")
+	machineName := m.selectedMachineName()
+	var procGroups []machine.ProcessGroup
+	if m.processes != nil {
+		procGroups = m.processes[machineName]
+	}
+	processesTitle := "Processes"
+	if machineName != "" {
+		processesTitle = fmt.Sprintf("Processes on %s", machineName)
+	}
+	var procSelectedRow int
+	if m.activePanel == panelProcesses {
+		procSelectedRow = m.selectedRow
+	} else {
+		procSelectedRow = -1
+	}
+	processesContent := renderProcessesPanel(machineName, procGroups, procSelectedRow)
+	processesPanel := wrapPanel(processesTitle, processesContent, panelWidth, m.activePanel == panelProcesses)
 
-	return fmt.Sprintf("%s\n\n%s\n%s\n%s\n\n%s",
-		title, machinesPanel, sessionsPanel, tunnelsPanel, help)
+	help := helpStyle.Render("tab: switch panel | j/k: navigate | o: open in browser | x: kill session | d: kill process group | q: quit")
+
+	return fmt.Sprintf("%s\n\n%s\n%s\n%s\n%s\n\n%s",
+		title, machinesPanel, sessionsPanel, tunnelsPanel, processesPanel, help)
 }
 
 func wrapPanel(title, content string, width int, active bool) string {
@@ -146,10 +187,16 @@ func refresh(cfg *config.Config, statePath string) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		healths := machine.ProbeAll(ctx, cfg.EnabledMachines())
+		enabled := cfg.EnabledMachines()
+		healths := machine.ProbeAll(ctx, enabled)
 		state, _ := session.LoadState(statePath)
 
-		return refreshMsg{healths: healths, state: state}
+		processes := make(map[string][]machine.ProcessGroup)
+		for _, m := range enabled {
+			processes[m.Name] = machine.ProbeProcesses(ctx, m)
+		}
+
+		return refreshMsg{healths: healths, state: state, processes: processes}
 	}
 }
 
@@ -161,6 +208,26 @@ func tunneledSessions(sessions []session.Session) []session.Session {
 		}
 	}
 	return out
+}
+
+func (m model) selectedMachineName() string {
+	if len(m.healths) == 0 {
+		return ""
+	}
+	idx := m.selectedMachine
+	if idx >= len(m.healths) {
+		idx = len(m.healths) - 1
+	}
+	return m.healths[idx].Name
+}
+
+func (m model) findMachine(name string) *config.Machine {
+	for _, mach := range m.cfg.Machines {
+		if mach.Name == name {
+			return &mach
+		}
+	}
+	return nil
 }
 
 func Run(cfg *config.Config, statePath string) error {
