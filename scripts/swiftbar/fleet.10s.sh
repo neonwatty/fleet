@@ -34,8 +34,8 @@ fi
 total=$(echo "$JSON" | jq '.machines | length')
 online=$(echo "$JSON" | jq '[.machines[] | select(.status == "online")] | length')
 cc=$(echo "$JSON" | jq '[.machines[].cc_count] | add // 0')
-stressed=$(echo "$JSON" | jq '[.machines[] | select(.label == "stressed")] | length')
-busy=$(echo "$JSON" | jq '[.machines[] | select(.label == "busy")] | length')
+stressed=$(echo "$JSON" | jq '[.machines[] | select(.health == "stressed")] | length')
+busy=$(echo "$JSON" | jq '[.machines[] | select(.health == "busy")] | length')
 
 prefix=""
 color=""
@@ -57,7 +57,7 @@ echo "$JSON" | jq -r '
   (if .status == "offline" then
     "\(.name) — offline | color=gray"
   else
-    "\(.name) \(if (.accounts | length) > 0 then "[" + (.accounts | join(",")) + "]" else "" end)  \(.label) · \(.mem_available_pct)% mem · \(.swap_gb)GB swap · \(.cc_count) CC"
+    "\(.name) \(if (.accounts | length) > 0 then "[" + (.accounts | join(",")) + "]" else "" end)  \(.health) · \(.mem_available_pct)% mem · \(.swap_gb)GB swap · \(.cc_count) CC"
   end),
   (.labels[] |
     (if .live then "  ● " + .name + " | color=white"
