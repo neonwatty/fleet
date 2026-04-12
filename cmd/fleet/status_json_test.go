@@ -54,6 +54,7 @@ func TestBuildStatusJSON(t *testing.T) {
 	s := string(blob)
 
 	for _, want := range []string{
+		`"version":"1"`,
 		`"timestamp":"2026-04-12T14:32:10Z"`,
 		`"name":"mm1"`,
 		`"status":"online"`,

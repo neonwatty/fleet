@@ -1,4 +1,5 @@
 {
+  "version": "1",
   "timestamp": "2026-04-12T14:32:10Z",
   "machines": [
     {
@@ -8,7 +9,7 @@
       "swap_gb": 9.1,
       "cc_count": 2,
       "score": 5,
-      "label": "busy",
+      "health": "busy",
       "accounts": ["personal-max"],
       "labels": [
         {"name": "bleep", "live": true, "session_id": "a1b2c3"},
@@ -22,7 +23,7 @@
       "swap_gb": 2.4,
       "cc_count": 1,
       "score": 32,
-      "label": "free",
+      "health": "free",
       "accounts": ["work-team"],
       "labels": [
         {"name": "seatify", "live": true, "session_id": "d4e5f6"}
@@ -35,7 +36,7 @@
       "swap_gb": 0,
       "cc_count": 0,
       "score": -1000,
-      "label": "offline",
+      "health": "offline",
       "accounts": [],
       "labels": []
     }

@@ -13,6 +13,7 @@ import (
 )
 
 type statusDoc struct {
+	Version   string          `json:"version"`
 	Timestamp string          `json:"timestamp"`
 	Machines  []machineStatus `json:"machines"`
 	Sessions  []sessionStatus `json:"sessions"`
@@ -25,7 +26,7 @@ type machineStatus struct {
 	SwapGB      float64       `json:"swap_gb"`
 	CCCount     int           `json:"cc_count"`
 	Score       float64       `json:"score"`
-	Label       string        `json:"label"`
+	Health      string        `json:"health"`
 	Accounts    []string      `json:"accounts"`
 	Labels      []labelStatus `json:"labels"`
 }
@@ -56,6 +57,7 @@ func buildStatusJSON(
 	now time.Time,
 ) statusDoc {
 	doc := statusDoc{
+		Version:   "1",
 		Timestamp: now.UTC().Format(time.RFC3339),
 		Machines:  []machineStatus{},
 		Sessions:  []sessionStatus{},
@@ -84,7 +86,7 @@ func buildStatusJSON(
 		ms.SwapGB = h.SwapUsedMB / 1024
 		ms.CCCount = h.ClaudeCount
 		ms.Score = machine.Score(h)
-		ms.Label = machine.ScoreLabel(ms.Score)
+		ms.Health = machine.ScoreLabel(ms.Score)
 		doc.Machines = append(doc.Machines, ms)
 	}
 
