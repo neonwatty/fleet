@@ -24,6 +24,7 @@ func main() {
 	root.AddCommand(launchCmd())
 	root.AddCommand(statusCmd())
 	root.AddCommand(cleanCmd())
+	root.AddCommand(labelCmd())
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
