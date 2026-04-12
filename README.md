@@ -135,6 +135,47 @@ Reconciles state against reality. Finds orphaned worktrees (no Claude process ru
 fleet clean
 ```
 
+## Menu Bar (SwiftBar)
+
+Fleet ships a SwiftBar plugin that shows a compact fleet indicator in the
+macOS menu bar. See [`scripts/swiftbar/README.md`](scripts/swiftbar/README.md)
+for install instructions.
+
+At a glance: `3/4 · 2 CC` means 3 of 4 machines are online with 2 live Claude
+Code instances. Click the indicator for a per-machine dropdown with accounts,
+labels, memory, and swap.
+
+## Session Labels and Accounts
+
+Fleet lets you attach user-chosen nicknames ("labels") to Claude Code sessions
+on each machine, and record which Claude subscription each session is burning.
+
+```bash
+# At launch
+fleet launch neonwatty/bleep -t mm1 --account personal-max --name bleep
+
+# After launch
+fleet label set mm1 bleep --session a1b2c3
+fleet account a1b2c3 personal-max
+```
+
+Labels survive remote machine restarts (they live in `~/.fleet/state.json` on
+the hub, not on the remote machine). When a label's matching CC process is
+gone, the TUI and menu bar render it dimmed as "stale" — useful for remembering
+what was running before a reboot.
+
+Per-machine default accounts can be set in `config.toml` so you don't have to
+pass `--account` every time:
+
+```toml
+[[machines]]
+name = "mm1"
+host = "mm1"
+user = "neonwatty"
+enabled = true
+default_account = "personal-max"
+```
+
 ## Health Score
 
 Fleet ranks machines using a simple formula:
