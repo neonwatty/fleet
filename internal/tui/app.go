@@ -156,10 +156,12 @@ func (m model) View() string {
 	machinesPanel := wrapPanel("Machines", machinesContent, panelWidth, m.activePanel == panelMachines)
 
 	var sessions []session.Session
+	var labels map[string][]session.MachineLabel
 	if m.state != nil {
 		sessions = m.state.Sessions
+		labels = m.state.MachineLabels
 	}
-	sessionsContent := renderSessionsPanel(sessions)
+	sessionsContent := renderSessionsPanel(sessions, labels)
 	sessionsPanel := wrapPanel("Sessions", sessionsContent, panelWidth, m.activePanel == panelSessions)
 
 	tunnelsContent := renderTunnelsPanel(sessions)
