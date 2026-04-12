@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fleet — SwiftBar menu bar mockup</title>
+<style>
+  :root {
+    --bg: #1a1a1c;
+    --panel-bg: rgba(40, 40, 44, 0.96);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --menubar-bg: rgba(28, 28, 32, 0.92);
+    --text: #e8e8ea;
+    --text-dim: #8a8a90;
+    --text-mute: #5a5a60;
+    --ok: #7cc47c;
+    --warn: #e6b35a;
+    --err: #e66b5a;
+    --accent: #6da6ff;
+    --row-hover: rgba(255, 255, 255, 0.06);
+    --sep: rgba(255, 255, 255, 0.08);
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0c0c0e;
+    font-family: var(--sans);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  p.lede {
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 32px;
+    max-width: 680px;
+  }
+  h2 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin: 40px 0 14px;
+  }
+
+  /* Simulated macOS menu bar strip */
+  .menubar {
+    position: relative;
+    height: 28px;
+    background: var(--menubar-bg);
+    backdrop-filter: blur(20px);
+    border-radius: 6px 6px 0 0;
+    border: 1px solid var(--panel-border);
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 13px;
+    color: var(--text);
+    overflow: hidden;
+  }
+  .menubar .spacer { flex: 1; }
+  .menubar .apple { opacity: 0.6; margin-right: 14px; font-size: 14px; }
+  .menubar .app-name { opacity: 0.6; margin-right: 18px; font-weight: 600; }
+  .menubar .sys-items { opacity: 0.35; font-family: var(--mono); font-size: 11px; letter-spacing: 0.3px; }
+  .menubar .fleet-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    margin: 0 6px;
+    border-radius: 4px;
+    background: rgba(109, 166, 255, 0.1);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .menubar .fleet-item.highlighted {
+    background: rgba(109, 166, 255, 0.22);
+  }
+  .menubar .fleet-item .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ok);
+  }
+  .menubar .fleet-item.warn .dot { background: var(--warn); }
+  .menubar .fleet-item.err  .dot { background: var(--err); }
+
+  /* Dropdown panel — styled to resemble native NSMenu output of SwiftBar */
+  .scene {
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+    padding-left: 220px;
+    margin-bottom: 36px;
+  }
+  .dropdown {
+    width: 360px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 6px 0;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(40px);
+    margin-top: 6px;
+    font-size: 13px;
+  }
+  .dropdown .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px 6px;
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  .sep {
+    height: 1px;
+    background: var(--sep);
+    margin: 4px 8px;
+  }
+  .machine-row {
+    padding: 8px 14px 6px;
+  }
+  .machine-row .top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .machine-row .name {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .machine-row .account {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    margin-left: 6px;
+  }
+  .machine-row .status {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .machine-row .status.busy { color: var(--warn); }
+  .machine-row .status.stressed { color: var(--err); }
+  .machine-row .status.offline { color: var(--text-mute); }
+  .machine-row .status .swap-hi { color: var(--err); }
+  .machine-row .status .swap-warn { color: var(--warn); }
+
+  .labels {
+    padding: 3px 14px 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+  .label .bullet {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ok);
+    flex: none;
+  }
+  .label.stale { color: var(--text-mute); }
+  .label.stale .bullet { background: transparent; border: 1px dashed var(--text-mute); }
+  .label .tag {
+    color: var(--text);
+  }
+  .label.stale .tag { color: var(--text-mute); }
+  .label .meta {
+    color: var(--text-dim);
+    font-size: 11px;
+    margin-left: auto;
+    padding-right: 2px;
+  }
+  .label.stale .meta { color: var(--text-mute); }
+
+  .footer-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: default;
+  }
+  .footer-action:hover { background: var(--row-hover); }
+  .footer-action .shortcut {
+    color: var(--text-mute);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .caption {
+    font-size: 12px;
+    color: var(--text-dim);
+    max-width: 640px;
+    margin: 6px 0 0 220px;
+    line-height: 1.5;
+  }
+
+  .variants {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 36px 24px;
+    margin-top: 24px;
+  }
+  .variant { min-width: 0; }
+  .variant .scene { padding-left: 80px; margin-bottom: 10px; }
+  .variant .caption { margin-left: 80px; font-size: 11px; }
+  .variant h3 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin: 0 0 8px 80px;
+  }
+
+  .legend {
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    background: rgba(40, 40, 44, 0.5);
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+  .legend code {
+    font-family: var(--mono);
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .legend .row { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Fleet — menu bar mockup</h1>
+  <p class="lede">
+    Visual mockup of the SwiftBar-hosted fleet indicator. The top strip simulates the macOS
+    menu bar; the panel below simulates the native NSMenu dropdown that SwiftBar renders from
+    the plugin script's output. Everything here is what the user sees — the actual
+    implementation is just a shell script calling <code style="font-family:var(--mono)">fleet status --json</code>.
+  </p>
+
+  <h2>Primary state — typical day</h2>
+
+  <!-- Menu bar -->
+  <div class="menubar">
+    <span class="apple">●</span>
+    <span class="app-name">Ghostty</span>
+    <span class="sys-items">File  Edit  View  Window  Help</span>
+    <span class="spacer"></span>
+    <span class="fleet-item highlighted">
+      <span class="dot"></span>
+      3/4 · 2 CC
+    </span>
+    <span class="sys-items">􀋊  􀊫  􀋥  􀆬  12:34</span>
+  </div>
+
+  <!-- Dropdown -->
+  <div class="scene">
+    <div class="dropdown">
+      <div class="header-row">
+        <span>FLEET</span>
+        <span>12:34</span>
+      </div>
+      <div class="sep"></div>
+
+      <!-- mm1: busy with two labels (one live, one stale) -->
+      <div class="machine-row">
+        <div class="top">
+          <span>
+            <span class="name">mm1</span>
+            <span class="account">personal-max</span>
+          </span>
+          <span class="status busy">busy · 22% mem · <span class="swap-hi">9.1GB swap</span> · 2 CC</span>
+        </div>
+      </div>
+      <div class="labels">
+        <div class="label">
+          <span class="bullet"></span>
+          <span class="tag">bleep</span>
+          <span class="meta">live</span>
+        </div>
+        <div class="label stale">
+          <span class="bullet"></span>
+          <span class="tag">deckchecker</span>
+          <span class="meta">stale</span>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- mm2: ok with one live session -->
+      <div class="machine-row">
+        <div class="top">
+          <span>
+            <span class="name">mm2</span>
+            <span class="account">work-team</span>
+          </span>
+          <span class="status">ok · 45% mem · <span class="swap-warn">2.4GB swap</span> · 1 CC</span>
+        </div>
+      </div>
+      <div class="labels">
+        <div class="label">
+          <span class="bullet"></span>
+          <span class="tag">seatify</span>
+          <span class="meta">live</span>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- mm3: offline, last-known label preserved -->
+      <div class="machine-row">
+        <div class="top">
+          <span>
+            <span class="name">mm3</span>
+          </span>
+          <span class="status offline">offline</span>
+        </div>
+      </div>
+      <div class="labels">
+        <div class="label stale">
+          <span class="bullet"></span>
+          <span class="tag">bugdrop</span>
+          <span class="meta">last seen 2h ago</span>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- local (MBA) -->
+      <div class="machine-row">
+        <div class="top">
+          <span>
+            <span class="name">local</span>
+            <span class="account">personal-max</span>
+          </span>
+          <span class="status">free · 67% mem · 0GB swap · 0 CC</span>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="footer-action">
+        <span>Open full dashboard</span>
+        <span class="shortcut">⌘⇧F</span>
+      </div>
+      <div class="footer-action">
+        <span>Refresh</span>
+        <span class="shortcut">⌘R</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="caption">
+    Menu bar title <code style="font-family:var(--mono)">3/4 · 2 CC</code> = 3 machines online of 4 total
+    · 2 live Claude Code instances across the fleet. Dropdown shows one machine per section with
+    the session labels indented underneath. <strong style="color:var(--text)">Live</strong> labels use
+    a filled bullet; <strong style="color:var(--text-mute)">stale</strong> labels (no matching
+    CC process) use an outlined bullet and muted text. Accounts render in accent color next to the
+    machine name. Offline machines keep their last-known label so you can still see
+    "mm3 was running bugdrop" after a restart.
+  </p>
+
+  <h2>Alternate states</h2>
+
+  <div class="variants">
+
+    <div class="variant">
+      <h3>One machine stressed</h3>
+      <div class="menubar">
+        <span class="apple">●</span>
+        <span class="app-name">Ghostty</span>
+        <span class="spacer"></span>
+        <span class="fleet-item warn">
+          <span class="dot"></span>
+          ⚠ 4/4 · 5 CC
+        </span>
+        <span class="sys-items">12:34</span>
+      </div>
+      <div class="scene">
+        <div class="dropdown">
+          <div class="header-row"><span>FLEET</span><span>12:34</span></div>
+          <div class="sep"></div>
+          <div class="machine-row">
+            <div class="top">
+              <span><span class="name">mm1</span><span class="account">personal-max</span></span>
+              <span class="status stressed">stressed · 8% mem · <span class="swap-hi">14.2GB swap</span> · 3 CC</span>
+            </div>
+          </div>
+          <div class="labels">
+            <div class="label"><span class="bullet"></span><span class="tag">bleep</span><span class="meta">live</span></div>
+            <div class="label"><span class="bullet"></span><span class="tag">deckchecker</span><span class="meta">live</span></div>
+            <div class="label"><span class="bullet"></span><span class="tag">bugdrop</span><span class="meta">live</span></div>
+          </div>
+          <div class="sep"></div>
+          <div class="machine-row">
+            <div class="top">
+              <span><span class="name">mm2</span><span class="account">work-team</span></span>
+              <span class="status">ok · 51% mem · 0.3GB swap · 1 CC</span>
+            </div>
+          </div>
+          <div class="labels">
+            <div class="label"><span class="bullet"></span><span class="tag">seatify</span><span class="meta">live</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">
+        Menu bar title turns amber and prefixes a warning glyph when any machine crosses the
+        "stressed" threshold. Dropdown row for the offending machine colors its status text
+        amber/red.
+      </p>
+    </div>
+
+    <div class="variant">
+      <h3>Mixed accounts on one machine</h3>
+      <div class="menubar">
+        <span class="apple">●</span>
+        <span class="app-name">Ghostty</span>
+        <span class="spacer"></span>
+        <span class="fleet-item">
+          <span class="dot"></span>
+          4/4 · 3 CC
+        </span>
+        <span class="sys-items">12:34</span>
+      </div>
+      <div class="scene">
+        <div class="dropdown">
+          <div class="header-row"><span>FLEET</span><span>12:34</span></div>
+          <div class="sep"></div>
+          <div class="machine-row">
+            <div class="top">
+              <span>
+                <span class="name">mm1</span>
+                <span class="account">personal-max, work-team</span>
+              </span>
+              <span class="status busy">busy · 18% mem · <span class="swap-warn">3.7GB swap</span> · 2 CC</span>
+            </div>
+          </div>
+          <div class="labels">
+            <div class="label">
+              <span class="bullet"></span>
+              <span class="tag">bleep</span>
+              <span class="meta">live · personal-max</span>
+            </div>
+            <div class="label">
+              <span class="bullet"></span>
+              <span class="tag">seatify-work</span>
+              <span class="meta">live · work-team</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">
+        When a machine has live sessions under more than one account, the machine-row account
+        shows both (comma-separated) and the per-label row gains a trailing
+        <code style="font-family:var(--mono)">· account-name</code> suffix so you can tell at a
+        glance which CC is burning which quota.
+      </p>
+    </div>
+
+  </div>
+
+  <h2>Rendering notes</h2>
+  <div class="legend">
+    <div class="row">
+      <code>● 3/4 · 2 CC</code> — menu bar title format.
+      Left of <code>·</code> is <em>online/total machines</em>; right is <em>live CC count</em>.
+    </div>
+    <div class="row">
+      <code>⚠ 4/4 · 5 CC</code> — warning prefix when any machine's score label ≥ <code>busy</code>.
+      Color shifts from default → <span style="color:var(--warn)">amber</span> →
+      <span style="color:var(--err)">red</span> based on worst-case machine.
+    </div>
+    <div class="row">
+      Filled bullet = <strong style="color:var(--text)">live</strong> label (matching CC process).
+      Outlined bullet = <strong style="color:var(--text-mute)">stale</strong> label (last-known, no
+      matching process).
+    </div>
+    <div class="row">
+      Swap coloring — default while swap is low, <span style="color:var(--warn)">amber</span>
+      once swap crosses ~1GB (early pressure signal), <span style="color:var(--err)">red</span>
+      once it crosses ~4GB (actively thrashing). Thresholds are configurable in
+      <code>config.toml</code>; defaults match fleet's existing <code>stress_threshold</code>
+      heuristics.
+    </div>
+    <div class="row">
+      Dropdown is a native NSMenu rendered by SwiftBar — this HTML mockup approximates its
+      appearance but the real thing uses native vibrancy, system font, and
+      macOS menu row metrics. Hover states, keyboard navigation, and
+      dismissal are all handled by AppKit.
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
