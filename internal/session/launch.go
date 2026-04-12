@@ -17,6 +17,7 @@ import (
 type LaunchOpts struct {
 	Project   string // "org/repo"
 	Branch    string
+	Account   string
 	Machine   config.Machine
 	Settings  config.Settings
 	StatePath string
@@ -105,6 +106,7 @@ func Launch(ctx context.Context, opts LaunchOpts) (*LaunchResult, error) {
 		Project:      opts.Project,
 		Machine:      opts.Machine.Name,
 		Branch:       opts.Branch,
+		Account:      ResolveAccount(opts.Account, opts.Machine),
 		WorktreePath: remoteWork,
 		Tunnel:       TunnelInfo{LocalPort: localPort, RemotePort: devPort},
 		StartedAt:    time.Now().UTC(),
