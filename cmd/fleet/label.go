@@ -76,6 +76,15 @@ func labelListCmd() *cobra.Command {
 		Short: "List labels across the fleet or on one machine",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 {
+				cfg, err := config.Load(config.DefaultPath())
+				if err != nil {
+					return fmt.Errorf("load config: %w", err)
+				}
+				if err := assertKnownMachine(cfg, args[0]); err != nil {
+					return err
+				}
+			}
 			statePath := session.DefaultStatePath()
 			state, err := session.LoadState(statePath)
 			if err != nil {
