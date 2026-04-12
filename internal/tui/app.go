@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -62,126 +61,6 @@ func NewModel(cfg *config.Config, statePath string) model {
 
 func (m model) Init() tea.Cmd {
 	return tea.Batch(refresh(m.cfg, m.statePath), tick(m.pollInterval))
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if m.renaming {
-			switch msg.String() {
-			case "esc":
-				m.renaming = false
-				m.renameBuffer = ""
-			case "enter":
-				if m.state != nil && m.selectedRow < len(m.state.Sessions) {
-					sess := m.state.Sessions[m.selectedRow]
-					if strings.TrimSpace(m.renameBuffer) != "" {
-						_ = session.AddLabel(
-							m.statePath,
-							sess.Machine,
-							strings.TrimSpace(m.renameBuffer),
-							sess.ID,
-							sess.PID,
-						)
-					}
-				}
-				m.renaming = false
-				m.renameBuffer = ""
-				return m, refresh(m.cfg, m.statePath)
-			case "backspace":
-				if len(m.renameBuffer) > 0 {
-					m.renameBuffer = m.renameBuffer[:len(m.renameBuffer)-1]
-				}
-			default:
-				if len(msg.Runes) == 1 {
-					m.renameBuffer += string(msg.Runes)
-				}
-			}
-			return m, nil
-		}
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		case "tab":
-			m.activePanel = (m.activePanel + 1) % panelCount
-			m.selectedRow = 0
-		case "shift+tab":
-			m.activePanel = (m.activePanel - 1 + panelCount) % panelCount
-			m.selectedRow = 0
-		case "j", "down":
-			m.selectedRow++
-			if m.activePanel == panelMachines {
-				m.selectedMachine = m.selectedRow
-			}
-		case "k", "up":
-			if m.selectedRow > 0 {
-				m.selectedRow--
-				if m.activePanel == panelMachines {
-					m.selectedMachine = m.selectedRow
-				}
-			}
-		case "o":
-			if m.activePanel == panelTunnels && m.state != nil {
-				tunneled := tunneledSessions(m.state.Sessions)
-				if m.selectedRow < len(tunneled) {
-					_ = openInBrowser(tunneled[m.selectedRow].Tunnel.LocalPort)
-				}
-			}
-		case "x":
-			if m.activePanel == panelSessions && m.state != nil {
-				if m.selectedRow < len(m.state.Sessions) {
-					sess := m.state.Sessions[m.selectedRow]
-					_ = killSession(context.Background(), m.cfg, sess, m.statePath)
-					return m, refresh(m.cfg, m.statePath)
-				}
-			}
-		case "n":
-			if m.activePanel == panelSessions && m.state != nil && m.selectedRow < len(m.state.Sessions) {
-				m.renaming = true
-				m.renameBuffer = ""
-			}
-		case "s":
-			if m.activePanel == panelProcesses && !m.swapScanning {
-				machineName := m.selectedMachineName()
-				mach := m.findMachine(machineName)
-				groups := m.processes[machineName]
-				if mach != nil && len(groups) > 0 {
-					m.swapScanning = true
-					m.swapScanTarget = machineName
-					return m, scanSwap(m.cfg, *mach, groups)
-				}
-			}
-		case "d":
-			if m.activePanel == panelProcesses && m.processes != nil {
-				machineName := m.selectedMachineName()
-				groups := m.processes[machineName]
-				if m.selectedRow < len(groups) && groups[m.selectedRow].Killable {
-					mach := m.findMachine(machineName)
-					if mach != nil {
-						_ = machine.KillGroup(context.Background(), *mach, groups[m.selectedRow])
-						return m, refresh(m.cfg, m.statePath)
-					}
-				}
-			}
-		}
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-	case tickMsg:
-		return m, tea.Batch(refresh(m.cfg, m.statePath), tick(m.pollInterval))
-	case refreshMsg:
-		m.healths = msg.healths
-		m.state = msg.state
-		m.processes = msg.processes
-	case swapScanMsg:
-		m.swapScanning = false
-		m.swapScanTarget = ""
-		if m.processes == nil {
-			m.processes = make(map[string][]machine.ProcessGroup)
-		}
-		m.processes[msg.machineName] = msg.groups
-	}
-	return m, nil
 }
 
 func (m model) View() string {
