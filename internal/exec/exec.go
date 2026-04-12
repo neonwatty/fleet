@@ -31,10 +31,15 @@ func Run(ctx context.Context, m config.Machine, command string) (string, error) 
 }
 
 func buildSSHArgs(m config.Machine, command string) []string {
-	args := make([]string, 0, 6)
+	args := make([]string, 0, 12)
 	args = append(args,
 		"-o", "ConnectTimeout=5",
 		"-o", "StrictHostKeyChecking=accept-new",
+		// Never prompt for a password — fail fast if key auth doesn't work.
+		// Otherwise fleet would block on a password prompt and look hung.
+		"-o", "BatchMode=yes",
+		"-o", "PasswordAuthentication=no",
+		"-o", "KbdInteractiveAuthentication=no",
 	)
 	args = append(args, m.Host, command)
 	return args

@@ -40,6 +40,26 @@ func TestBuildSSHCommand(t *testing.T) {
 	}
 }
 
+func TestBuildSSHCommandNonInteractive(t *testing.T) {
+	// Verify SSH never prompts for a password — fleet must fail fast
+	// when key auth doesn't work, not block on stdin.
+	m := config.Machine{Name: "mm1", Host: "mm1"}
+	args := buildSSHArgs(m, "echo test")
+	joined := strings.Join(args, " ")
+
+	required := []string{
+		"BatchMode=yes",
+		"PasswordAuthentication=no",
+		"KbdInteractiveAuthentication=no",
+		"ConnectTimeout=5",
+	}
+	for _, opt := range required {
+		if !strings.Contains(joined, opt) {
+			t.Errorf("expected %q in SSH args, got: %v", opt, args)
+		}
+	}
+}
+
 func TestRunWithTimeout(t *testing.T) {
 	local := config.Machine{Name: "local", Host: "localhost"}
 	ctx, cancel := context.WithTimeout(context.Background(), 0)
