@@ -105,3 +105,45 @@ func TestLoadConfigMissingFile(t *testing.T) {
 		t.Error("expected error for missing file")
 	}
 }
+
+func TestLoadConfigWithDefaultAccount(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	toml := `
+[settings]
+port_range = [4000, 4999]
+poll_interval = 5
+stress_threshold = 20
+worktree_base = "/tmp/fleet-work"
+bare_repo_base = "/tmp/fleet-repos"
+
+[[machines]]
+name = "mm1"
+host = "mm1"
+user = "neonwatty"
+enabled = true
+default_account = "personal-max"
+
+[[machines]]
+name = "mm2"
+host = "mm2"
+user = "neonwatty"
+enabled = true
+`
+	if err := os.WriteFile(path, []byte(toml), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	if cfg.Machines[0].DefaultAccount != "personal-max" {
+		t.Errorf("mm1 DefaultAccount = %q, want personal-max", cfg.Machines[0].DefaultAccount)
+	}
+	if cfg.Machines[1].DefaultAccount != "" {
+		t.Errorf("mm2 DefaultAccount = %q, want empty", cfg.Machines[1].DefaultAccount)
+	}
+}
