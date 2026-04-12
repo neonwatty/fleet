@@ -62,11 +62,16 @@ func buildStatusJSON(
 		Sessions:  []sessionStatus{},
 	}
 
+	liveSessionIDs := make(map[string]bool, len(sessions))
+	for _, s := range sessions {
+		liveSessionIDs[s.ID] = true
+	}
+
 	for _, h := range healths {
 		ms := machineStatus{
 			Name:     h.Name,
 			Accounts: accountsForMachine(h.Name, sessions),
-			Labels:   labelStatusList(labels[h.Name], ccPIDs[h.Name]),
+			Labels:   labelStatusList(labels[h.Name], ccPIDs[h.Name], liveSessionIDs),
 		}
 		if !h.Online {
 			ms.Status = "offline"
@@ -117,7 +122,7 @@ func accountsForMachine(name string, sessions []session.Session) []string {
 	return out
 }
 
-func labelStatusList(labels []session.MachineLabel, livePIDs []int) []labelStatus {
+func labelStatusList(labels []session.MachineLabel, livePIDs []int, liveSessionIDs map[string]bool) []labelStatus {
 	livePIDset := make(map[int]struct{}, len(livePIDs))
 	for _, p := range livePIDs {
 		livePIDset[p] = struct{}{}
@@ -126,7 +131,7 @@ func labelStatusList(labels []session.MachineLabel, livePIDs []int) []labelStatu
 	for _, l := range labels {
 		live := false
 		if l.SessionID != "" {
-			live = true
+			live = liveSessionIDs[l.SessionID]
 		} else if l.LastSeenPID != 0 {
 			if _, ok := livePIDset[l.LastSeenPID]; ok {
 				live = true

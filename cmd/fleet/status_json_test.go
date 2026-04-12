@@ -42,6 +42,7 @@ func TestBuildStatusJSON(t *testing.T) {
 			{Name: "deckchecker", SessionID: ""},
 			{Name: "orphan-live", SessionID: "", LastSeenPID: 5555},
 			{Name: "orphan-dead", SessionID: "", LastSeenPID: 6666},
+			{Name: "ghost", SessionID: "dead-sess"}, // linked to removed session
 		},
 	}
 	ccPIDs := map[string][]int{"mm1": {4242, 5555}}
@@ -65,6 +66,7 @@ func TestBuildStatusJSON(t *testing.T) {
 		`"live":false`,
 		`"name":"orphan-live"`,
 		`"name":"orphan-dead"`,
+		`"name":"ghost"`,
 		`"name":"mm2"`,
 		`"status":"offline"`,
 		`"project":"neonwatty/bleep"`,
@@ -99,5 +101,8 @@ func TestBuildStatusJSON(t *testing.T) {
 	}
 	if found["orphan-dead"] {
 		t.Errorf("orphan-dead (no PID match) should be stale")
+	}
+	if found["ghost"] {
+		t.Errorf("ghost (linked to removed session) should be stale")
 	}
 }

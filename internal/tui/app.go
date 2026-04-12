@@ -199,7 +199,11 @@ func (m model) View() string {
 		labels = m.state.MachineLabels
 	}
 	ccPIDs := ccPIDsFromProcesses(m.processes)
-	machinesContent := renderMachinesPanel(m.healths, sessions, labels, ccPIDs, panelWidth)
+	liveSessionIDs := make(map[string]bool, len(sessions))
+	for _, s := range sessions {
+		liveSessionIDs[s.ID] = true
+	}
+	machinesContent := renderMachinesPanel(m.healths, sessions, labels, ccPIDs, liveSessionIDs, panelWidth)
 	machinesPanel := wrapPanel("Machines", machinesContent, panelWidth, m.activePanel == panelMachines)
 
 	sessionsContent := renderSessionsPanel(sessions, labels)
