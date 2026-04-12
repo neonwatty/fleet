@@ -26,7 +26,7 @@ func Score(h Health) float64 {
 func ScoreLabel(score float64) string {
 	switch {
 	case score >= 30:
-		return "idle"
+		return "free"
 	case score >= 10:
 		return "ok"
 	case score >= -20:

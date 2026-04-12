@@ -153,10 +153,12 @@ The score maps to a label:
 
 | Label | Score | Meaning |
 |-------|-------|---------|
-| idle | >= 30 | Plenty of headroom |
+| free | >= 30 | Plenty of headroom (may still be running CC instances) |
 | ok | >= 10 | Running workloads but has room |
 | busy | >= -20 | Under load, will work but slower |
 | stressed | < -20 | Heavy swap, likely sluggish |
+
+The `free` label means *spare capacity*, not *no activity* — a machine with 2 CC instances and lots of RAM left can still land in `free`.
 
 ## OAuth Tunnel Pinning
 
