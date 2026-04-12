@@ -25,6 +25,7 @@ func main() {
 	root.AddCommand(statusCmd())
 	root.AddCommand(cleanCmd())
 	root.AddCommand(labelCmd())
+	root.AddCommand(accountCmd())
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
