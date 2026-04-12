@@ -35,6 +35,8 @@ func main() {
 func launchCmd() *cobra.Command {
 	var branch string
 	var target string
+	var account string
+	var label string
 
 	cmd := &cobra.Command{
 		Use:   "launch <org/repo>",
@@ -108,12 +110,25 @@ func launchCmd() *cobra.Command {
 			result, err := session.Launch(ctx, session.LaunchOpts{
 				Project:   project,
 				Branch:    branch,
+				Account:   account,
 				Machine:   chosen,
 				Settings:  cfg.Settings,
 				StatePath: session.DefaultStatePath(),
 			})
 			if err != nil {
 				return fmt.Errorf("launch: %w", err)
+			}
+
+			if label != "" {
+				if err := session.AddLabel(
+					session.DefaultStatePath(),
+					chosen.Name,
+					label,
+					result.Session.ID,
+					result.Session.PID,
+				); err != nil {
+					fmt.Fprintf(os.Stderr, "warning: failed to add label: %v\n", err)
+				}
 			}
 
 			if result.Session.Tunnel.LocalPort > 0 && !chosen.IsLocal() {
@@ -135,6 +150,8 @@ func launchCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&branch, "branch", "b", "main", "Branch to check out")
 	cmd.Flags().StringVarP(&target, "target", "t", "", "Force a specific machine")
+	cmd.Flags().StringVar(&account, "account", "", "Claude account label for this session (falls back to machine default)")
+	cmd.Flags().StringVar(&label, "name", "", "Nickname to attach to the machine (creates a linked label)")
 	return cmd
 }
 
