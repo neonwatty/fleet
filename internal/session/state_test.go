@@ -126,6 +126,7 @@ func TestGenerateID(t *testing.T) {
 }
 
 func TestStateRoundTripWithLabelsAndAccounts(t *testing.T) {
+	const wantAccount = "personal-max"
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
 
@@ -137,7 +138,7 @@ func TestStateRoundTripWithLabelsAndAccounts(t *testing.T) {
 				Project: "neonwatty/bleep",
 				Machine: "mm1",
 				Branch:  "main",
-				Account: "personal-max",
+				Account: wantAccount,
 			},
 		},
 		MachineLabels: map[string][]MachineLabel{
@@ -157,8 +158,8 @@ func TestStateRoundTripWithLabelsAndAccounts(t *testing.T) {
 		t.Fatalf("LoadState() error: %v", err)
 	}
 
-	if loaded.Sessions[0].Account != "personal-max" {
-		t.Errorf("Account = %q, want %q", loaded.Sessions[0].Account, "personal-max")
+	if loaded.Sessions[0].Account != wantAccount {
+		t.Errorf("Account = %q, want %q", loaded.Sessions[0].Account, wantAccount)
 	}
 	if len(loaded.MachineLabels["mm1"]) != 2 {
 		t.Fatalf("len(MachineLabels[mm1]) = %d, want 2", len(loaded.MachineLabels["mm1"]))
@@ -178,7 +179,12 @@ func TestLoadStateBackCompatNoLabels(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
 
-	legacy := `{"sessions":[{"id":"x","project":"p","machine":"m","branch":"main","worktree_path":"/tmp","tunnel":{"local_port":0,"remote_port":0},"started_at":"2026-04-11T08:00:00Z","pid":1}]}`
+	legacy := `{"sessions":[{` +
+		`"id":"x","project":"p","machine":"m","branch":"main",` +
+		`"worktree_path":"/tmp",` +
+		`"tunnel":{"local_port":0,"remote_port":0},` +
+		`"started_at":"2026-04-11T08:00:00Z","pid":1` +
+		`}]}`
 	if err := os.WriteFile(path, []byte(legacy), 0644); err != nil {
 		t.Fatalf("write legacy: %v", err)
 	}
@@ -193,7 +199,7 @@ func TestLoadStateBackCompatNoLabels(t *testing.T) {
 	if loaded.Sessions[0].Account != "" {
 		t.Errorf("legacy Account = %q, want empty", loaded.Sessions[0].Account)
 	}
-	if loaded.MachineLabels != nil && len(loaded.MachineLabels) > 0 {
+	if len(loaded.MachineLabels) > 0 {
 		t.Errorf("legacy MachineLabels should be nil/empty, got %v", loaded.MachineLabels)
 	}
 }

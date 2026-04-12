@@ -49,7 +49,6 @@ type sessionStatus struct {
 }
 
 func buildStatusJSON(
-	cfg *config.Config,
 	healths []machine.Health,
 	sessions []session.Session,
 	labels map[string][]session.MachineLabel,
@@ -174,7 +173,7 @@ func runStatusJSON(cfg *config.Config) error {
 		}
 	}
 
-	doc := buildStatusJSON(cfg, healths, state.Sessions, state.MachineLabels, ccPIDs, time.Now())
+	doc := buildStatusJSON(healths, state.Sessions, state.MachineLabels, ccPIDs, time.Now())
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")

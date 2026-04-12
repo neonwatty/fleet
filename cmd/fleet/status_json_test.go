@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neonwatty/fleet/internal/config"
 	"github.com/neonwatty/fleet/internal/machine"
 	"github.com/neonwatty/fleet/internal/session"
 )
@@ -46,9 +45,8 @@ func TestBuildStatusJSON(t *testing.T) {
 		},
 	}
 	ccPIDs := map[string][]int{"mm1": {4242, 5555}}
-	cfg := &config.Config{Machines: []config.Machine{{Name: "mm1"}, {Name: "mm2"}}}
 
-	doc := buildStatusJSON(cfg, healths, sessions, labels, ccPIDs, time.Date(2026, 4, 12, 14, 32, 10, 0, time.UTC))
+	doc := buildStatusJSON(healths, sessions, labels, ccPIDs, time.Date(2026, 4, 12, 14, 32, 10, 0, time.UTC))
 	blob, err := json.Marshal(doc)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
