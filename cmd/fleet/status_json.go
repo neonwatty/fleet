@@ -124,20 +124,9 @@ func accountsForMachine(name string, sessions []session.Session) []string {
 }
 
 func labelStatusList(labels []session.MachineLabel, livePIDs []int, liveSessionIDs map[string]bool) []labelStatus {
-	livePIDset := make(map[int]struct{}, len(livePIDs))
-	for _, p := range livePIDs {
-		livePIDset[p] = struct{}{}
-	}
 	out := make([]labelStatus, 0, len(labels))
 	for _, l := range labels {
-		live := false
-		if l.SessionID != "" {
-			live = liveSessionIDs[l.SessionID]
-		} else if l.LastSeenPID != 0 {
-			if _, ok := livePIDset[l.LastSeenPID]; ok {
-				live = true
-			}
-		}
+		live := session.IsLabelLive(l, liveSessionIDs, livePIDs)
 		out = append(out, labelStatus{Name: l.Name, Live: live, SessionID: l.SessionID})
 	}
 	return out

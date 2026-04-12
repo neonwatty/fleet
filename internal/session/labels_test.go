@@ -78,6 +78,68 @@ func TestRemoveLabel(t *testing.T) {
 	}
 }
 
+func TestIsLabelLive(t *testing.T) {
+	tests := []struct {
+		name         string
+		label        MachineLabel
+		liveSessions map[string]bool
+		livePIDs     []int
+		want         bool
+	}{
+		{
+			name:         "linked label with live session",
+			label:        MachineLabel{Name: "a", SessionID: "s1"},
+			liveSessions: map[string]bool{"s1": true},
+			livePIDs:     nil,
+			want:         true,
+		},
+		{
+			name:         "linked label with dead session",
+			label:        MachineLabel{Name: "a", SessionID: "gone"},
+			liveSessions: map[string]bool{"s1": true},
+			livePIDs:     nil,
+			want:         false,
+		},
+		{
+			name:         "orphan label with PID in livePIDs",
+			label:        MachineLabel{Name: "a", SessionID: "", LastSeenPID: 4242},
+			liveSessions: nil,
+			livePIDs:     []int{1, 4242, 9999},
+			want:         true,
+		},
+		{
+			name:         "orphan label with PID NOT in livePIDs",
+			label:        MachineLabel{Name: "a", SessionID: "", LastSeenPID: 4242},
+			liveSessions: nil,
+			livePIDs:     []int{1, 2, 3},
+			want:         false,
+		},
+		{
+			name:         "orphan label with LastSeenPID == 0",
+			label:        MachineLabel{Name: "a", SessionID: "", LastSeenPID: 0},
+			liveSessions: nil,
+			livePIDs:     []int{1, 2, 3},
+			want:         false,
+		},
+		{
+			name:         "linked label still works with empty livePIDs",
+			label:        MachineLabel{Name: "a", SessionID: "s1"},
+			liveSessions: map[string]bool{"s1": true},
+			livePIDs:     []int{},
+			want:         true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := IsLabelLive(tc.label, tc.liveSessions, tc.livePIDs)
+			if got != tc.want {
+				t.Errorf("IsLabelLive() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestClearLabels(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
