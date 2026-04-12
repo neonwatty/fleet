@@ -161,6 +161,68 @@ enabled = true
 	}
 }
 
+func TestLoadConfigSwapWarnMBDefault(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	// Without swap_warn_mb set: should default to 1024.
+	content := `
+[settings]
+port_range = [4000, 4999]
+poll_interval = 5
+worktree_base = "/tmp/fleet-work"
+bare_repo_base = "/tmp/fleet-repos"
+
+[[machines]]
+name = "mm1"
+host = "mm1"
+user = "neonwatty"
+enabled = true
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	if cfg.Settings.SwapWarnMB != 1024 {
+		t.Errorf("SwapWarnMB = %d, want 1024 (default)", cfg.Settings.SwapWarnMB)
+	}
+}
+
+func TestLoadConfigSwapWarnMBExplicit(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	content := `
+[settings]
+port_range = [4000, 4999]
+poll_interval = 5
+worktree_base = "/tmp/fleet-work"
+bare_repo_base = "/tmp/fleet-repos"
+swap_warn_mb = 2048
+
+[[machines]]
+name = "mm1"
+host = "mm1"
+user = "neonwatty"
+enabled = true
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	if cfg.Settings.SwapWarnMB != 2048 {
+		t.Errorf("SwapWarnMB = %d, want 2048", cfg.Settings.SwapWarnMB)
+	}
+}
+
 func TestLoadConfigMissingFile(t *testing.T) {
 	_, err := Load("/nonexistent/config.toml")
 	if err == nil {
