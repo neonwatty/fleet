@@ -11,7 +11,8 @@ import (
 )
 
 type State struct {
-	Sessions []Session `json:"sessions"`
+	Sessions      []Session                 `json:"sessions"`
+	MachineLabels map[string][]MachineLabel `json:"machine_labels,omitempty"`
 }
 
 type Session struct {
@@ -19,10 +20,18 @@ type Session struct {
 	Project      string     `json:"project"`
 	Machine      string     `json:"machine"`
 	Branch       string     `json:"branch"`
+	Account      string     `json:"account,omitempty"`
 	WorktreePath string     `json:"worktree_path"`
 	Tunnel       TunnelInfo `json:"tunnel"`
 	StartedAt    time.Time  `json:"started_at"`
 	PID          int        `json:"pid"`
+}
+
+type MachineLabel struct {
+	Name        string    `json:"name"`
+	SessionID   string    `json:"session_id,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	LastSeenPID int       `json:"last_seen_pid,omitempty"`
 }
 
 type TunnelInfo struct {
