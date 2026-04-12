@@ -106,7 +106,7 @@ func machineNameCell(name string, sessions []session.Session) string {
 // its LastSeenPID matches one of the currently observed CC PIDs on the machine.
 func formatLabelList(labels []session.MachineLabel, livePIDs []int, liveSessionIDs map[string]bool) string {
 	if len(labels) == 0 {
-		return dimStyle.Render("—")
+		return dimStyle.Render(emDash)
 	}
 	livePIDset := make(map[int]struct{}, len(livePIDs))
 	for _, p := range livePIDs {

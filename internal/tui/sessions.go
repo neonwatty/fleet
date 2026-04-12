@@ -8,6 +8,10 @@ import (
 	"github.com/neonwatty/fleet/internal/session"
 )
 
+// emDash renders "no value" in a fixed-width cell (empty account, empty
+// label, offline machine).
+const emDash = "\u2014"
+
 func renderSessionsPanel(sessions []session.Session, labels map[string][]session.MachineLabel) string {
 	if len(sessions) == 0 {
 		return dimStyle.Render("No active sessions")
@@ -24,7 +28,7 @@ func renderSessionsPanel(sessions []session.Session, labels map[string][]session
 		uptime := time.Since(s.StartedAt).Truncate(time.Second)
 		account := s.Account
 		if account == "" {
-			account = "—"
+			account = emDash
 		}
 		label := labelForSession(labels, s)
 		line := fmt.Sprintf("%-8s %-20s %-8s %-10s %-10s %-14s %-14s",
@@ -39,14 +43,14 @@ func renderSessionsPanel(sessions []session.Session, labels map[string][]session
 
 func labelForSession(labels map[string][]session.MachineLabel, s session.Session) string {
 	if labels == nil {
-		return "—"
+		return emDash
 	}
 	for _, l := range labels[s.Machine] {
 		if l.SessionID == s.ID {
 			return l.Name
 		}
 	}
-	return "—"
+	return emDash
 }
 
 func truncateStr(s string, max int) string {
