@@ -58,7 +58,7 @@ echo "$JSON" | jq -r '
   (if .status == "offline" then
     "\(.name) — offline | color=gray"
   else
-    "\(.name) \(if (.accounts | length) > 0 then "[" + (.accounts | join(",")) + "]" else "" end)  \(.health) · \(.mem_available_pct)% mem · \(((.swap_gb * 100) | round) / 100)GB swap · \(.cc_count) CC" +
+    "\(.name) \(if (.accounts | length) > 0 then "[" + (.accounts | join(",")) + "]" else "" end)  \(.health) · \(.mem_available_pct)% mem · \(((.swap_gb * 10) | round) / 10)GB swap · \(.cc_count) CC" +
     (if .swap_gb * 1024 >= $t.swap_high_mb then " | color=red"
      elif .swap_gb * 1024 >= $t.swap_warn_mb then " | color=orange"
      else ""
