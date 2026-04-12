@@ -127,9 +127,39 @@ Opens a live TUI dashboard with four panels:
 | `d` | Kill a process group on the selected machine (Processes panel) |
 | `q` / `ctrl+c` | Quit |
 
+Pass `--json` to emit fleet state as JSON instead of opening the TUI — used by the SwiftBar plugin and any other scripted consumer:
+
+```bash
+fleet status --json
+```
+
+### `fleet label`
+
+Manage user-chosen nicknames attached to Claude Code sessions on each machine. Labels survive remote restarts and render as "stale" in both the TUI and the menu bar when their linked session is gone.
+
+```bash
+fleet label set mm1 bleep                    # add orphan label on mm1
+fleet label set mm1 bleep --session a1b2c3   # link a label to an existing session
+fleet label set mm1 bleep --remove           # remove a single label
+fleet label set mm1 --clear                  # remove all labels on mm1
+fleet label list                             # list labels across the fleet
+fleet label list mm1                         # list labels on one machine
+```
+
+### `fleet account`
+
+Set or clear the Claude subscription label on an existing session. Use to track which subscription each session is burning when juggling multiple accounts.
+
+```bash
+fleet account a1b2c3 personal-max
+fleet account a1b2c3 --clear
+```
+
+Per-machine defaults live in `config.toml` via `default_account` — sessions launched with `fleet launch -t mm1` inherit that default unless overridden with `--account`.
+
 ### `fleet clean`
 
-Reconciles state against reality. Finds orphaned worktrees (no Claude process running), stale state entries, and orphaned tunnel processes — cleans them all up.
+Reconciles state against reality. Finds orphaned worktrees (no Claude process running), stale state entries, and orphaned tunnel processes — cleans them all up. Also clears dangling `SessionID` references on labels whose sessions no longer exist, converting them to orphan labels.
 
 ```bash
 fleet clean

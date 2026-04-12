@@ -8,6 +8,8 @@ stress_threshold = 20           # Score below this triggers confirmation prompt
 worktree_base = "~/fleet-work"  # Remote directory for worktrees
 bare_repo_base = "~/fleet-repos" # Remote directory for bare clones
 swap_scan_procs = 10             # Max processes to scan for swap (via vmmap, ~1-2s each)
+swap_warn_mb = 1024              # Swap threshold for amber warning in TUI + menu bar (default 1GB)
+swap_high_mb = 4096              # Swap threshold for red warning in TUI + menu bar (default 4GB)
 
 [[machines]]
 name = "local"
