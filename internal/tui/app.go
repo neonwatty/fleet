@@ -152,15 +152,16 @@ func (m model) View() string {
 	title := titleStyle.Render("Fleet Dashboard")
 	panelWidth := m.width - 4
 
-	machinesContent := renderMachinesPanel(m.healths, panelWidth)
-	machinesPanel := wrapPanel("Machines", machinesContent, panelWidth, m.activePanel == panelMachines)
-
 	var sessions []session.Session
 	var labels map[string][]session.MachineLabel
 	if m.state != nil {
 		sessions = m.state.Sessions
 		labels = m.state.MachineLabels
 	}
+	ccPIDs := ccPIDsFromProcesses(m.processes)
+	machinesContent := renderMachinesPanel(m.healths, sessions, labels, ccPIDs, panelWidth)
+	machinesPanel := wrapPanel("Machines", machinesContent, panelWidth, m.activePanel == panelMachines)
+
 	sessionsContent := renderSessionsPanel(sessions, labels)
 	sessionsPanel := wrapPanel("Sessions", sessionsContent, panelWidth, m.activePanel == panelSessions)
 
@@ -267,6 +268,18 @@ func (m model) findMachine(name string) *config.Machine {
 		}
 	}
 	return nil
+}
+
+func ccPIDsFromProcesses(procs map[string][]machine.ProcessGroup) map[string][]int {
+	out := make(map[string][]int, len(procs))
+	for name, groups := range procs {
+		for _, g := range groups {
+			if g.Name == "Claude Code" {
+				out[name] = append(out[name], g.PIDs...)
+			}
+		}
+	}
+	return out
 }
 
 func Run(cfg *config.Config, statePath string) error {
