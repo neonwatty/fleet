@@ -56,8 +56,11 @@ func buildStatusJSON(
 	ccPIDs map[string][]int,
 	now time.Time,
 ) statusDoc {
-	_ = cfg // reserved for future use (e.g. machine metadata)
-	doc := statusDoc{Timestamp: now.UTC().Format(time.RFC3339)}
+	doc := statusDoc{
+		Timestamp: now.UTC().Format(time.RFC3339),
+		Machines:  []machineStatus{},
+		Sessions:  []sessionStatus{},
+	}
 
 	for _, h := range healths {
 		ms := machineStatus{
@@ -100,7 +103,7 @@ func buildStatusJSON(
 
 func accountsForMachine(name string, sessions []session.Session) []string {
 	seen := make(map[string]struct{})
-	var out []string
+	out := []string{}
 	for _, s := range sessions {
 		if s.Machine != name || s.Account == "" {
 			continue
