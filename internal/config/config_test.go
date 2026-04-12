@@ -99,6 +99,68 @@ func TestExpandPath(t *testing.T) {
 	}
 }
 
+func TestLoadConfigSwapHighMBDefault(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	// Without swap_high_mb set: should default to 4096.
+	content := `
+[settings]
+port_range = [4000, 4999]
+poll_interval = 5
+worktree_base = "/tmp/fleet-work"
+bare_repo_base = "/tmp/fleet-repos"
+
+[[machines]]
+name = "mm1"
+host = "mm1"
+user = "neonwatty"
+enabled = true
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	if cfg.Settings.SwapHighMB != 4096 {
+		t.Errorf("SwapHighMB = %d, want 4096 (default)", cfg.Settings.SwapHighMB)
+	}
+}
+
+func TestLoadConfigSwapHighMBExplicit(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	content := `
+[settings]
+port_range = [4000, 4999]
+poll_interval = 5
+worktree_base = "/tmp/fleet-work"
+bare_repo_base = "/tmp/fleet-repos"
+swap_high_mb = 8192
+
+[[machines]]
+name = "mm1"
+host = "mm1"
+user = "neonwatty"
+enabled = true
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	if cfg.Settings.SwapHighMB != 8192 {
+		t.Errorf("SwapHighMB = %d, want 8192", cfg.Settings.SwapHighMB)
+	}
+}
+
 func TestLoadConfigMissingFile(t *testing.T) {
 	_, err := Load("/nonexistent/config.toml")
 	if err == nil {

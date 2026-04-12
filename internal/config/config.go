@@ -21,6 +21,7 @@ type Settings struct {
 	WorktreeBase    string `toml:"worktree_base"`
 	BareRepoBase    string `toml:"bare_repo_base"`
 	SwapScanProcs   int    `toml:"swap_scan_procs"`
+	SwapHighMB      int    `toml:"swap_high_mb"`
 }
 
 type Machine struct {
@@ -46,6 +47,9 @@ func Load(path string) (*Config, error) {
 	cfg.Settings.BareRepoBase = ExpandPath(cfg.Settings.BareRepoBase)
 	if cfg.Settings.SwapScanProcs == 0 {
 		cfg.Settings.SwapScanProcs = 10
+	}
+	if cfg.Settings.SwapHighMB == 0 {
+		cfg.Settings.SwapHighMB = 4096
 	}
 
 	return &cfg, nil
