@@ -53,11 +53,16 @@ echo "FLEET | size=11 color=gray"
 echo "---"
 
 echo "$JSON" | jq -r '
+  .thresholds as $t |
   .machines[] |
   (if .status == "offline" then
     "\(.name) — offline | color=gray"
   else
-    "\(.name) \(if (.accounts | length) > 0 then "[" + (.accounts | join(",")) + "]" else "" end)  \(.health) · \(.mem_available_pct)% mem · \(.swap_gb)GB swap · \(.cc_count) CC"
+    "\(.name) \(if (.accounts | length) > 0 then "[" + (.accounts | join(",")) + "]" else "" end)  \(.health) · \(.mem_available_pct)% mem · \(.swap_gb)GB swap · \(.cc_count) CC" +
+    (if .swap_gb * 1024 >= $t.swap_high_mb then " | color=red"
+     elif .swap_gb * 1024 >= $t.swap_warn_mb then " | color=orange"
+     else ""
+     end)
   end),
   (.labels[] |
     (if .live then "  ● " + .name + " | color=white"

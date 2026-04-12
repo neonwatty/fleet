@@ -82,7 +82,7 @@ func (m model) View() string {
 	for _, s := range sessions {
 		liveSessionIDs[s.ID] = true
 	}
-	machinesContent := renderMachinesPanel(m.healths, sessions, labels, ccPIDs, liveSessionIDs, m.cfg.Settings.SwapHighMB, panelWidth)
+	machinesContent := renderMachinesPanel(m.healths, sessions, labels, ccPIDs, liveSessionIDs, m.cfg.Settings.SwapWarnMB, m.cfg.Settings.SwapHighMB, panelWidth)
 	machinesPanel := wrapPanel("Machines", machinesContent, panelWidth, m.activePanel == panelMachines)
 
 	sessionsContent := renderSessionsPanel(sessions, labels)

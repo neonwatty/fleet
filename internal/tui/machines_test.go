@@ -33,7 +33,7 @@ func TestMachinesPanelRendersAccountSuffixAndLabels(t *testing.T) {
 	ccPIDs := map[string][]int{"mm1": {}}
 	liveSessionIDs := map[string]bool{"s1": true}
 
-	out := renderMachinesPanel(healths, sessions, labels, ccPIDs, liveSessionIDs, 4096, 80)
+	out := renderMachinesPanel(healths, sessions, labels, ccPIDs, liveSessionIDs, 1024, 4096, 80)
 	if !strings.Contains(out, "[personal-max]") {
 		t.Errorf("expected [personal-max] suffix:\n%s", out)
 	}

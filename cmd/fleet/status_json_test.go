@@ -46,7 +46,8 @@ func TestBuildStatusJSON(t *testing.T) {
 	}
 	ccPIDs := map[string][]int{"mm1": {4242, 5555}}
 
-	doc := buildStatusJSON(healths, sessions, labels, ccPIDs, time.Date(2026, 4, 12, 14, 32, 10, 0, time.UTC))
+	thresholds := thresholdConfig{SwapWarnMB: 1024, SwapHighMB: 4096}
+	doc := buildStatusJSON(healths, sessions, labels, ccPIDs, thresholds, time.Date(2026, 4, 12, 14, 32, 10, 0, time.UTC))
 	blob, err := json.Marshal(doc)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -71,10 +72,16 @@ func TestBuildStatusJSON(t *testing.T) {
 		`"project":"neonwatty/bleep"`,
 		`"account":"personal-max"`,
 		`"label":"bleep"`,
+		`"swap_warn_mb":1024`,
+		`"swap_high_mb":4096`,
 	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("json missing %q:\n%s", want, s)
 		}
+	}
+
+	if !strings.Contains(s, "\"thresholds\"") {
+		t.Errorf("json missing top-level \"thresholds\" key:\n%s", s)
 	}
 
 	var doc2 statusDoc

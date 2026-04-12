@@ -15,6 +15,7 @@ func renderMachinesPanel(
 	labels map[string][]session.MachineLabel,
 	ccPIDs map[string][]int,
 	liveSessionIDs map[string]bool,
+	swapWarnMB int,
 	swapHighMB int,
 	_ int,
 ) string {
@@ -66,9 +67,12 @@ func renderMachinesPanel(
 		} else {
 			memCol = fmt.Sprintf("%-10s ", memRaw)
 		}
-		if h.SwapUsedMB > float64(swapHighMB) {
+		switch {
+		case h.SwapUsedMB >= float64(swapHighMB):
+			swapCol = offlineStyle.Render(fmt.Sprintf("%-10s", swapRaw)) + " "
+		case h.SwapUsedMB >= float64(swapWarnMB):
 			swapCol = warnStyle.Render(fmt.Sprintf("%-10s", swapRaw)) + " "
-		} else {
+		default:
 			swapCol = fmt.Sprintf("%-10s ", swapRaw)
 		}
 

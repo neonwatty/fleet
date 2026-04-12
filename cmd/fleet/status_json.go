@@ -13,10 +13,16 @@ import (
 )
 
 type statusDoc struct {
-	Version   string          `json:"version"`
-	Timestamp string          `json:"timestamp"`
-	Machines  []machineStatus `json:"machines"`
-	Sessions  []sessionStatus `json:"sessions"`
+	Version    string          `json:"version"`
+	Timestamp  string          `json:"timestamp"`
+	Thresholds thresholdConfig `json:"thresholds"`
+	Machines   []machineStatus `json:"machines"`
+	Sessions   []sessionStatus `json:"sessions"`
+}
+
+type thresholdConfig struct {
+	SwapWarnMB int `json:"swap_warn_mb"`
+	SwapHighMB int `json:"swap_high_mb"`
 }
 
 type machineStatus struct {
@@ -54,13 +60,15 @@ func buildStatusJSON(
 	sessions []session.Session,
 	labels map[string][]session.MachineLabel,
 	ccPIDs map[string][]int,
+	thresholds thresholdConfig,
 	now time.Time,
 ) statusDoc {
 	doc := statusDoc{
-		Version:   "1",
-		Timestamp: now.UTC().Format(time.RFC3339),
-		Machines:  []machineStatus{},
-		Sessions:  []sessionStatus{},
+		Version:    "1",
+		Timestamp:  now.UTC().Format(time.RFC3339),
+		Thresholds: thresholds,
+		Machines:   []machineStatus{},
+		Sessions:   []sessionStatus{},
 	}
 
 	liveSessionIDs := make(map[string]bool, len(sessions))
@@ -164,7 +172,11 @@ func runStatusJSON(cfg *config.Config) error {
 		}
 	}
 
-	doc := buildStatusJSON(healths, state.Sessions, state.MachineLabels, ccPIDs, time.Now())
+	thresholds := thresholdConfig{
+		SwapWarnMB: cfg.Settings.SwapWarnMB,
+		SwapHighMB: cfg.Settings.SwapHighMB,
+	}
+	doc := buildStatusJSON(healths, state.Sessions, state.MachineLabels, ccPIDs, thresholds, time.Now())
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
