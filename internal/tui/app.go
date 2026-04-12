@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -36,6 +37,8 @@ type model struct {
 	pollInterval    time.Duration
 	swapScanning    bool   // true while a swap scan is in progress
 	swapScanTarget  string // machine name being scanned
+	renaming        bool
+	renameBuffer    string
 }
 
 type tickMsg time.Time
@@ -64,6 +67,38 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.renaming {
+			switch msg.String() {
+			case "esc":
+				m.renaming = false
+				m.renameBuffer = ""
+			case "enter":
+				if m.state != nil && m.selectedRow < len(m.state.Sessions) {
+					sess := m.state.Sessions[m.selectedRow]
+					if strings.TrimSpace(m.renameBuffer) != "" {
+						_ = session.AddLabel(
+							m.statePath,
+							sess.Machine,
+							strings.TrimSpace(m.renameBuffer),
+							sess.ID,
+							sess.PID,
+						)
+					}
+				}
+				m.renaming = false
+				m.renameBuffer = ""
+				return m, refresh(m.cfg, m.statePath)
+			case "backspace":
+				if len(m.renameBuffer) > 0 {
+					m.renameBuffer = m.renameBuffer[:len(m.renameBuffer)-1]
+				}
+			default:
+				if len(msg.Runes) == 1 {
+					m.renameBuffer += string(msg.Runes)
+				}
+			}
+			return m, nil
+		}
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -99,6 +134,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					_ = killSession(context.Background(), m.cfg, sess, m.statePath)
 					return m, refresh(m.cfg, m.statePath)
 				}
+			}
+		case "n":
+			if m.activePanel == panelSessions && m.state != nil && m.selectedRow < len(m.state.Sessions) {
+				m.renaming = true
+				m.renameBuffer = ""
 			}
 		case "s":
 			if m.activePanel == panelProcesses && !m.swapScanning {
@@ -186,8 +226,10 @@ func (m model) View() string {
 	processesContent := renderProcessesPanel(machineName, procGroups, procSelectedRow)
 	processesPanel := wrapPanel(processesTitle, processesContent, panelWidth, m.activePanel == panelProcesses)
 
-	helpParts := "tab: switch panel | j/k: navigate | o: open in browser | x: kill session | s: scan swap | d: kill process group | q: quit"
-	if m.swapScanning {
+	helpParts := "tab: switch panel | j/k: navigate | o: open in browser | x: kill session | n: rename label | s: scan swap | d: kill process group | q: quit"
+	if m.renaming {
+		helpParts = fmt.Sprintf("rename label: %s▌  (enter: save, esc: cancel)", m.renameBuffer)
+	} else if m.swapScanning {
 		helpParts = fmt.Sprintf("Scanning swap on %s... | q: quit", m.swapScanTarget)
 	}
 	help := helpStyle.Render(helpParts)
