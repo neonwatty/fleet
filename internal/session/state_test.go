@@ -22,7 +22,7 @@ func TestStateRoundTrip(t *testing.T) {
 				WorktreePath: "/Users/jeremywatt/fleet-work/seatify-1234",
 				Tunnel:       TunnelInfo{LocalPort: 4001, RemotePort: 3000},
 				StartedAt:    time.Date(2026, 4, 11, 8, 0, 0, 0, time.UTC),
-				PID:          12345,
+				OwnerPID:     12345,
 			},
 		},
 	}

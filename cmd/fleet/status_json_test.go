@@ -32,7 +32,7 @@ func TestBuildStatusJSON(t *testing.T) {
 			Account:   "personal-max",
 			Tunnel:    session.TunnelInfo{LocalPort: 3000, RemotePort: 3000},
 			StartedAt: time.Date(2026, 4, 12, 9, 15, 0, 0, time.UTC),
-			PID:       4242,
+			OwnerPID:  4242,
 		},
 	}
 	labels := map[string][]session.MachineLabel{

@@ -110,7 +110,7 @@ func Launch(ctx context.Context, opts LaunchOpts) (*LaunchResult, error) {
 		WorktreePath: remoteWork,
 		Tunnel:       TunnelInfo{LocalPort: localPort, RemotePort: devPort},
 		StartedAt:    time.Now().UTC(),
-		PID:          os.Getpid(),
+		OwnerPID:     os.Getpid(),
 	}
 
 	if err := AddSession(opts.StatePath, sess); err != nil {
