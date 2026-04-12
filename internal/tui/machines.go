@@ -15,6 +15,7 @@ func renderMachinesPanel(
 	labels map[string][]session.MachineLabel,
 	ccPIDs map[string][]int,
 	liveSessionIDs map[string]bool,
+	swapHighMB int,
 	_ int,
 ) string {
 	var b strings.Builder
@@ -65,7 +66,7 @@ func renderMachinesPanel(
 		} else {
 			memCol = fmt.Sprintf("%-10s ", memRaw)
 		}
-		if h.SwapUsedMB > 4096 {
+		if h.SwapUsedMB > float64(swapHighMB) {
 			swapCol = warnStyle.Render(fmt.Sprintf("%-10s", swapRaw)) + " "
 		} else {
 			swapCol = fmt.Sprintf("%-10s ", swapRaw)
