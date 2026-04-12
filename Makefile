@@ -1,4 +1,6 @@
-.PHONY: lint test test-coverage build fmt vet check clean install
+.PHONY: lint test test-coverage test-swiftbar build fmt vet check clean install
+
+SHELL := /bin/bash
 
 BINARY := fleet
 BUILD_DIR := bin
@@ -23,7 +25,13 @@ fmt:
 vet:
 	go vet ./...
 
-check: fmt lint vet test build
+test-swiftbar:
+	@diff -u scripts/swiftbar/fixtures/status.expected.txt \
+		<(FLEET_STATUS_FIXTURE=scripts/swiftbar/fixtures/status.json \
+			./scripts/swiftbar/fleet.10s.sh)
+	@echo "swiftbar plugin output matches golden."
+
+check: fmt lint vet test test-swiftbar build
 
 clean:
 	rm -rf $(BUILD_DIR)/ coverage.out
