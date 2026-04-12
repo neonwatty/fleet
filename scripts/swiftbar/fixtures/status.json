@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-04-12T14:32:10Z",
+  "machines": [
+    {
+      "name": "mm1",
+      "status": "online",
+      "mem_available_pct": 22,
+      "swap_gb": 9.1,
+      "cc_count": 2,
+      "score": 5,
+      "label": "busy",
+      "accounts": ["personal-max"],
+      "labels": [
+        {"name": "bleep", "live": true, "session_id": "a1b2c3"},
+        {"name": "deckchecker", "live": false, "session_id": ""}
+      ]
+    },
+    {
+      "name": "mm2",
+      "status": "online",
+      "mem_available_pct": 45,
+      "swap_gb": 2.4,
+      "cc_count": 1,
+      "score": 32,
+      "label": "free",
+      "accounts": ["work-team"],
+      "labels": [
+        {"name": "seatify", "live": true, "session_id": "d4e5f6"}
+      ]
+    },
+    {
+      "name": "mm3",
+      "status": "offline",
+      "mem_available_pct": 0,
+      "swap_gb": 0,
+      "cc_count": 0,
+      "score": -1000,
+      "label": "offline",
+      "accounts": [],
+      "labels": []
+    }
+  ],
+  "sessions": [
+    {"id": "a1b2c3", "project": "neonwatty/bleep", "machine": "mm1", "branch": "main", "account": "personal-max", "label": "bleep", "tunnel_local_port": 3000, "tunnel_remote_port": 3000, "started_at": "2026-04-12T09:15:00Z"},
+    {"id": "d4e5f6", "project": "neonwatty/seatify", "machine": "mm2", "branch": "main", "account": "work-team", "label": "seatify", "tunnel_local_port": 4001, "tunnel_remote_port": 3000, "started_at": "2026-04-12T10:00:00Z"}
+  ]
+}
