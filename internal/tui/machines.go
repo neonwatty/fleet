@@ -38,7 +38,7 @@ func renderMachinesPanel(healths []machine.Health, _ int) string {
 		label := machine.ScoreLabel(score)
 		var healthCol string
 		switch label {
-		case "idle":
+		case "free":
 			healthCol = onlineStyle.Render(fmt.Sprintf("%-10s", label))
 		case "ok":
 			healthCol = onlineStyle.Render(fmt.Sprintf("%-10s", label))
