@@ -156,7 +156,8 @@ func launchCmd() *cobra.Command {
 }
 
 func statusCmd() *cobra.Command {
-	return &cobra.Command{
+	var jsonOut bool
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show fleet dashboard",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -164,9 +165,14 @@ func statusCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
+			if jsonOut {
+				return runStatusJSON(cfg)
+			}
 			return tui.Run(cfg, session.DefaultStatePath())
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit fleet status as JSON and exit (no TUI)")
+	return cmd
 }
 
 func cleanCmd() *cobra.Command {
