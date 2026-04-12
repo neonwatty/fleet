@@ -24,7 +24,7 @@ type Session struct {
 	WorktreePath string     `json:"worktree_path"`
 	Tunnel       TunnelInfo `json:"tunnel"`
 	StartedAt    time.Time  `json:"started_at"`
-	PID          int        `json:"pid"`
+	OwnerPID     int        `json:"pid"` // fleet CLI PID for signal cleanup, NOT the remote claude PID
 }
 
 type MachineLabel struct {

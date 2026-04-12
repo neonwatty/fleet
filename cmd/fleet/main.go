@@ -125,7 +125,7 @@ func launchCmd() *cobra.Command {
 					chosen.Name,
 					label,
 					result.Session.ID,
-					0, // Session.PID is the fleet CLI PID, not the remote claude PID
+					0, // OwnerPID is the fleet CLI PID, not the remote claude PID
 				); err != nil {
 					fmt.Fprintf(os.Stderr, "warning: failed to add label: %v\n", err)
 				}

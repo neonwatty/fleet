@@ -170,7 +170,7 @@ func (m model) handleRenameKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					sess.Machine,
 					strings.TrimSpace(m.renameBuffer),
 					sess.ID,
-					sess.PID,
+					0, // OwnerPID is the fleet CLI PID, not the remote claude PID
 				)
 			}
 		}
