@@ -78,6 +78,25 @@ func ClearLabels(statePath, machineName string) error {
 	return Save(statePath, s)
 }
 
+// IsLabelLive returns true when a label should be considered live on its
+// machine. A linked label (non-empty SessionID) is live iff its session is
+// in liveSessions. An orphan label (empty SessionID) is live iff its
+// LastSeenPID appears in livePIDs.
+func IsLabelLive(l MachineLabel, liveSessions map[string]bool, livePIDs []int) bool {
+	if l.SessionID != "" {
+		return liveSessions[l.SessionID]
+	}
+	if l.LastSeenPID == 0 {
+		return false
+	}
+	for _, p := range livePIDs {
+		if p == l.LastSeenPID {
+			return true
+		}
+	}
+	return false
+}
+
 // ListLabels returns a copy of the labels for a machine, or nil if none.
 func ListLabels(statePath, machineName string) ([]MachineLabel, error) {
 	s, err := LoadState(statePath)

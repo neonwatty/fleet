@@ -108,22 +108,9 @@ func formatLabelList(labels []session.MachineLabel, livePIDs []int, liveSessionI
 	if len(labels) == 0 {
 		return dimStyle.Render(emDash)
 	}
-	livePIDset := make(map[int]struct{}, len(livePIDs))
-	for _, p := range livePIDs {
-		livePIDset[p] = struct{}{}
-	}
-
 	parts := make([]string, 0, len(labels))
 	for _, l := range labels {
-		live := false
-		if l.SessionID != "" {
-			live = liveSessionIDs[l.SessionID]
-		} else if l.LastSeenPID != 0 {
-			if _, ok := livePIDset[l.LastSeenPID]; ok {
-				live = true
-			}
-		}
-		if live {
+		if session.IsLabelLive(l, liveSessionIDs, livePIDs) {
 			parts = append(parts, l.Name)
 		} else {
 			parts = append(parts, dimStyle.Render(l.Name+"(stale)"))
