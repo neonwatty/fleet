@@ -24,10 +24,11 @@ type Settings struct {
 }
 
 type Machine struct {
-	Name    string `toml:"name"`
-	Host    string `toml:"host"`
-	User    string `toml:"user"`
-	Enabled bool   `toml:"enabled"`
+	Name           string `toml:"name"`
+	Host           string `toml:"host"`
+	User           string `toml:"user"`
+	Enabled        bool   `toml:"enabled"`
+	DefaultAccount string `toml:"default_account"`
 }
 
 func Load(path string) (*Config, error) {
