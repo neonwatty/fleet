@@ -14,6 +14,7 @@ func renderMachinesPanel(
 	sessions []session.Session,
 	labels map[string][]session.MachineLabel,
 	ccPIDs map[string][]int,
+	liveSessionIDs map[string]bool,
 	_ int,
 ) string {
 	var b strings.Builder
@@ -30,7 +31,7 @@ func renderMachinesPanel(
 			fmt.Fprintf(&b, "%-22s ", nameCell)
 			b.WriteString(offlineStyle.Render(fmt.Sprintf("%-8s", "offline")))
 			b.WriteString("  ")
-			b.WriteString(formatLabelList(labels[h.Name], nil))
+			b.WriteString(formatLabelList(labels[h.Name], nil, liveSessionIDs))
 			b.WriteString("\n")
 			continue
 		}
@@ -72,7 +73,7 @@ func renderMachinesPanel(
 
 		b.WriteString(nameCol + statusCol + memCol + swapCol + claudeCol + healthCol)
 		b.WriteString("  ")
-		b.WriteString(formatLabelList(labels[h.Name], ccPIDs[h.Name]))
+		b.WriteString(formatLabelList(labels[h.Name], ccPIDs[h.Name], liveSessionIDs))
 		b.WriteString("\n")
 	}
 
@@ -100,9 +101,10 @@ func machineNameCell(name string, sessions []session.Session) string {
 }
 
 // formatLabelList renders labels as "live1, live2, stale1(stale)".
-// A label is live when its SessionID is non-empty OR its LastSeenPID matches
-// one of the currently observed CC PIDs on the machine.
-func formatLabelList(labels []session.MachineLabel, livePIDs []int) string {
+// A linked label (non-empty SessionID) is live iff its session still exists
+// in the liveSessionIDs set. An orphan label (empty SessionID) is live iff
+// its LastSeenPID matches one of the currently observed CC PIDs on the machine.
+func formatLabelList(labels []session.MachineLabel, livePIDs []int, liveSessionIDs map[string]bool) string {
 	if len(labels) == 0 {
 		return dimStyle.Render("—")
 	}
@@ -115,7 +117,7 @@ func formatLabelList(labels []session.MachineLabel, livePIDs []int) string {
 	for _, l := range labels {
 		live := false
 		if l.SessionID != "" {
-			live = true
+			live = liveSessionIDs[l.SessionID]
 		} else if l.LastSeenPID != 0 {
 			if _, ok := livePIDset[l.LastSeenPID]; ok {
 				live = true

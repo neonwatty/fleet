@@ -25,13 +25,15 @@ func TestMachinesPanelRendersAccountSuffixAndLabels(t *testing.T) {
 	}
 	labels := map[string][]session.MachineLabel{
 		"mm1": {
-			{Name: "bleep", SessionID: "s1"},     // live
-			{Name: "deckchecker", SessionID: ""}, // stale
+			{Name: "bleep", SessionID: "s1"},     // live: session exists
+			{Name: "deckchecker", SessionID: ""}, // stale: orphan, no PID
+			{Name: "ghost", SessionID: "gone"},   // stale: linked to removed session
 		},
 	}
 	ccPIDs := map[string][]int{"mm1": {}}
+	liveSessionIDs := map[string]bool{"s1": true}
 
-	out := renderMachinesPanel(healths, sessions, labels, ccPIDs, 80)
+	out := renderMachinesPanel(healths, sessions, labels, ccPIDs, liveSessionIDs, 80)
 	if !strings.Contains(out, "[personal-max]") {
 		t.Errorf("expected [personal-max] suffix:\n%s", out)
 	}
@@ -40,5 +42,12 @@ func TestMachinesPanelRendersAccountSuffixAndLabels(t *testing.T) {
 	}
 	if !strings.Contains(out, "deckchecker") {
 		t.Errorf("expected stale label 'deckchecker':\n%s", out)
+	}
+	if !strings.Contains(out, "ghost") {
+		t.Errorf("expected linked-but-dead label 'ghost':\n%s", out)
+	}
+	// ghost should be dimmed as stale, not bright live
+	if !strings.Contains(out, "ghost(stale)") {
+		t.Errorf("expected ghost to render with (stale) suffix (linked session removed):\n%s", out)
 	}
 }
