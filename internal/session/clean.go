@@ -97,6 +97,13 @@ func Clean(ctx context.Context, cfg *config.Config, statePath string) error {
 	}
 
 	state.Sessions = alive
+	aliveIDs := make(map[string]bool, len(alive))
+	for _, sess := range alive {
+		aliveIDs[sess.ID] = true
+	}
+	if n := resetDanglingLabels(state, aliveIDs); n > 0 {
+		fmt.Printf("  Reset %d dangling label(s) to orphan status\n", n)
+	}
 	if err := Save(statePath, state); err != nil {
 		return fmt.Errorf("save state: %w", err)
 	}
@@ -107,6 +114,25 @@ func Clean(ctx context.Context, cfg *config.Config, statePath string) error {
 	killOrphanTunnels(alive)
 
 	return nil
+}
+
+// resetDanglingLabels clears the SessionID field on any label whose
+// SessionID no longer references a surviving session. Returns the count
+// of labels that were reset. The label's Name and LastSeenPID are
+// preserved so the label continues to render (as stale/orphan) after the
+// linked session has been torn down.
+func resetDanglingLabels(state *State, aliveIDs map[string]bool) int {
+	count := 0
+	for machineName, labels := range state.MachineLabels {
+		for i := range labels {
+			if labels[i].SessionID != "" && !aliveIDs[labels[i].SessionID] {
+				labels[i].SessionID = ""
+				count++
+			}
+		}
+		state.MachineLabels[machineName] = labels
+	}
+	return count
 }
 
 func killOrphanTunnels(aliveSessions []Session) {

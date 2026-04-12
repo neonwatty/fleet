@@ -2,6 +2,7 @@ package session
 
 import (
 	"testing"
+	"time"
 )
 
 func TestClassifySessions(t *testing.T) {
@@ -33,6 +34,74 @@ func TestClassifySessions(t *testing.T) {
 	}
 	if len(stale) != 1 || stale[0].ID != "stale" {
 		t.Errorf("stale = %v, want [stale]", ids(stale))
+	}
+}
+
+func TestResetDanglingLabels(t *testing.T) {
+	now := time.Now().UTC()
+	state := &State{
+		MachineLabels: map[string][]MachineLabel{
+			"mm1": {
+				{Name: "alive-label", SessionID: "s1", CreatedAt: now, LastSeenPID: 1111},
+				{Name: "dangling-label", SessionID: "s2", CreatedAt: now, LastSeenPID: 2222},
+				{Name: "already-orphan", SessionID: "", CreatedAt: now, LastSeenPID: 3333},
+			},
+			"mm2": {
+				{Name: "also-dangling", SessionID: "s3", CreatedAt: now},
+			},
+		},
+	}
+
+	aliveIDs := map[string]bool{"s1": true}
+
+	n := resetDanglingLabels(state, aliveIDs)
+	if n != 2 {
+		t.Errorf("resetDanglingLabels returned %d, want 2", n)
+	}
+
+	mm1 := state.MachineLabels["mm1"]
+
+	// Alive-linked label preserved intact.
+	if mm1[0].Name != "alive-label" {
+		t.Errorf("mm1[0].Name = %q, want alive-label", mm1[0].Name)
+	}
+	if mm1[0].SessionID != "s1" {
+		t.Errorf("alive-label SessionID = %q, want s1", mm1[0].SessionID)
+	}
+	if mm1[0].LastSeenPID != 1111 {
+		t.Errorf("alive-label LastSeenPID = %d, want 1111", mm1[0].LastSeenPID)
+	}
+
+	// Dangling label has SessionID cleared; Name and LastSeenPID preserved.
+	if mm1[1].Name != "dangling-label" {
+		t.Errorf("dangling-label Name = %q, want preserved as 'dangling-label'", mm1[1].Name)
+	}
+	if mm1[1].SessionID != "" {
+		t.Errorf("dangling-label SessionID = %q, want empty (reset)", mm1[1].SessionID)
+	}
+	if mm1[1].LastSeenPID != 2222 {
+		t.Errorf("dangling-label LastSeenPID = %d, want preserved 2222", mm1[1].LastSeenPID)
+	}
+
+	// Already-orphan label untouched.
+	if mm1[2].SessionID != "" || mm1[2].LastSeenPID != 3333 {
+		t.Errorf("already-orphan label mutated: %+v", mm1[2])
+	}
+
+	// Cross-machine dangling label also reset.
+	mm2 := state.MachineLabels["mm2"]
+	if mm2[0].SessionID != "" {
+		t.Errorf("mm2 also-dangling SessionID = %q, want empty", mm2[0].SessionID)
+	}
+	if mm2[0].Name != "also-dangling" {
+		t.Errorf("mm2 also-dangling Name = %q, want preserved", mm2[0].Name)
+	}
+}
+
+func TestResetDanglingLabelsEmpty(t *testing.T) {
+	state := &State{}
+	if n := resetDanglingLabels(state, map[string]bool{}); n != 0 {
+		t.Errorf("resetDanglingLabels on empty state returned %d, want 0", n)
 	}
 }
 
