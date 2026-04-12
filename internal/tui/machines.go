@@ -20,7 +20,7 @@ func renderMachinesPanel(
 ) string {
 	var b strings.Builder
 
-	header := fmt.Sprintf("%-22s %-8s %-10s %-10s %-5s %-10s %s",
+	header := fmt.Sprintf("%-28s %-8s %-10s %-10s %-5s %-10s %s",
 		"MACHINE", "STATUS", "MEM AVAIL", "SWAP USED", "CC", "HEALTH", "LABELS")
 	b.WriteString(headerStyle.Render(header))
 	b.WriteString("\n")
@@ -29,7 +29,7 @@ func renderMachinesPanel(
 		nameCell := machineNameCell(h.Name, sessions)
 
 		if !h.Online {
-			fmt.Fprintf(&b, "%-22s ", nameCell)
+			fmt.Fprintf(&b, "%-28s ", nameCell)
 			b.WriteString(offlineStyle.Render(fmt.Sprintf("%-8s", "offline")))
 			b.WriteString("  ")
 			b.WriteString(formatLabelList(labels[h.Name], nil, liveSessionIDs))
@@ -44,7 +44,7 @@ func renderMachinesPanel(
 		swapRaw := fmt.Sprintf("%.1fGB", h.SwapUsedMB/1024)
 		claudeRaw := fmt.Sprintf("%d", h.ClaudeCount)
 
-		nameCol := fmt.Sprintf("%-22s ", nameCell)
+		nameCol := fmt.Sprintf("%-28s ", nameCell)
 		statusCol := onlineStyle.Render(fmt.Sprintf("%-8s", "online")) + " "
 		claudeCol := fmt.Sprintf("%-5s ", claudeRaw)
 		label := machine.ScoreLabel(score)
@@ -91,14 +91,14 @@ func machineNameCell(name string, sessions []session.Session) string {
 		}
 	}
 	if len(accounts) == 0 {
-		return name
+		return truncateStr(name, 28)
 	}
 	names := make([]string, 0, len(accounts))
 	for a := range accounts {
 		names = append(names, a)
 	}
 	sort.Strings(names)
-	return name + " [" + strings.Join(names, ",") + "]"
+	return truncateStr(name+" ["+strings.Join(names, ",")+"]", 28)
 }
 
 // formatLabelList renders labels as "live1, live2, stale1(stale)".
