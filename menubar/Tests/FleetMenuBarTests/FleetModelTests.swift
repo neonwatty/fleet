@@ -4,9 +4,11 @@ import XCTest
 final class FleetModelTests: XCTestCase {
 
     func testDecodesFixtureSnapshot() throws {
-        let url = Bundle(for: Self.self).url(forResource: "status", withExtension: "json")
-        XCTAssertNotNil(url, "status.json fixture not found in test bundle")
-        let data = try Data(contentsOf: url!)
+        let url = try XCTUnwrap(
+            Bundle(for: Self.self).url(forResource: "status", withExtension: "json"),
+            "status.json fixture not found in test bundle"
+        )
+        let data = try Data(contentsOf: url)
         let snapshot = try JSONDecoder().decode(FleetSnapshot.self, from: data)
 
         XCTAssertEqual(snapshot.version, "1")
@@ -27,6 +29,7 @@ final class FleetModelTests: XCTestCase {
         XCTAssertEqual(mm1.labels[0].sessionId, "a1b2c3")
         XCTAssertEqual(mm1.labels[1].name, "deckchecker")
         XCTAssertFalse(mm1.labels[1].live)
+        XCTAssertEqual(mm1.labels[1].sessionId, "")
 
         let mm3 = snapshot.machines.first { $0.name == "mm3" }!
         XCTAssertEqual(mm3.status, "offline")
