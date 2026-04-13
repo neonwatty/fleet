@@ -127,7 +127,7 @@ Opens a live TUI dashboard with four panels:
 | `d` | Kill a process group on the selected machine (Processes panel) |
 | `q` / `ctrl+c` | Quit |
 
-Pass `--json` to emit fleet state as JSON instead of opening the TUI — used by the SwiftBar plugin and any other scripted consumer:
+Pass `--json` to emit fleet state as JSON instead of opening the TUI — used by the menu bar app and any other scripted consumer:
 
 ```bash
 fleet status --json
