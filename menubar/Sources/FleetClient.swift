@@ -9,7 +9,11 @@ final class FleetClient: ObservableObject {
     private let binaryPath: String
     private let refreshInterval: TimeInterval
     private var timer: Timer?
+    private var refreshInFlight = false
     private let queue = DispatchQueue(label: "com.neonwatty.FleetMenuBar.refresh", qos: .utility)
+
+    /// Read-only view of the in-flight flag, for tests.
+    var isRefreshing: Bool { refreshInFlight }
 
     init(binaryPath: String, refreshInterval: TimeInterval = 10) {
         self.binaryPath = binaryPath
@@ -29,11 +33,17 @@ final class FleetClient: ObservableObject {
     }
 
     func refresh() {
+        // Drop overlapping calls. If `fleet status --json` takes longer than
+        // `refreshInterval` (e.g. an SSH probe stalls), the timer keeps ticking
+        // but we don't stack work on the background queue.
+        guard !refreshInFlight else { return }
+        refreshInFlight = true
         let path = binaryPath
         queue.async { [weak self] in
             let result = Self.runStatus(binaryPath: path)
             DispatchQueue.main.async {
                 guard let self else { return }
+                self.refreshInFlight = false
                 switch result {
                 case .success(let snap):
                     self.snapshot = snap

@@ -29,6 +29,30 @@ struct MachineStatus: Codable {
     let accounts: [String]
     let labels: [LabelStatus]
 
+    // Explicit memberwise init so test helpers can build instances by field,
+    // even if a custom init(from:) is added later and removes the synthesized one.
+    init(
+        name: String,
+        status: String,
+        health: String,
+        memAvailablePct: Int,
+        swapGB: Double,
+        ccCount: Int,
+        score: Double,
+        accounts: [String],
+        labels: [LabelStatus]
+    ) {
+        self.name = name
+        self.status = status
+        self.health = health
+        self.memAvailablePct = memAvailablePct
+        self.swapGB = swapGB
+        self.ccCount = ccCount
+        self.score = score
+        self.accounts = accounts
+        self.labels = labels
+    }
+
     enum CodingKeys: String, CodingKey {
         case name, status, health, score, accounts, labels
         case memAvailablePct = "mem_available_pct"

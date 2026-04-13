@@ -50,4 +50,28 @@ final class FleetClientTests: XCTestCase {
         let data = Data("{}".utf8)
         XCTAssertThrowsError(try FleetClient.decode(data))
     }
+
+    @MainActor
+    func testRefreshDropsOverlappingCalls() {
+        // Use a path that's guaranteed missing so `Process.run()` throws fast.
+        // The failure still hops through DispatchQueue.main.async, which won't
+        // run until after this test method returns — so `isRefreshing` stays
+        // true for the duration of the test.
+        let client = FleetClient(binaryPath: "/tmp/definitely-nonexistent-fleet-binary-xyz")
+        XCTAssertFalse(client.isRefreshing)
+
+        client.refresh()
+        XCTAssertTrue(
+            client.isRefreshing,
+            "refresh() should set the in-flight flag synchronously before dispatching"
+        )
+
+        // A second call while the first is still in flight must be a no-op
+        // (dropped, not queued).
+        client.refresh()
+        XCTAssertTrue(
+            client.isRefreshing,
+            "overlapping refresh() should leave the flag set without stacking work"
+        )
+    }
 }
