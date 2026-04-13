@@ -40,6 +40,8 @@ targets:
     platform: macOS
     sources:
       - path: Tests/FleetMenuBarTests
+      - path: Tests/FleetMenuBarTests/Fixtures
+        buildPhase: resources
     dependencies:
       - target: FleetMenuBar
     settings:
