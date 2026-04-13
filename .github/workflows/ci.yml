@@ -92,10 +92,28 @@ jobs:
       - name: Run vulnerability check
         run: govulncheck ./...
 
+  menubar-tests:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install xcodegen
+        run: brew install xcodegen
+      - name: Run menubar Swift tests
+        run: |
+          cd menubar
+          xcodegen generate
+          xcodebuild test \
+            -project FleetMenuBar.xcodeproj \
+            -scheme FleetMenuBar \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            | tail -40
+
   ci-gate:
     runs-on: macos-latest
     timeout-minutes: 2
-    needs: [quality-checks, unit-tests, build, file-size-check, vulnerability-check]
+    needs: [quality-checks, unit-tests, build, file-size-check, vulnerability-check, menubar-tests]
     if: always()
     steps:
       - name: Check results
@@ -104,7 +122,8 @@ jobs:
              [[ "${{ needs.unit-tests.result }}" != "success" ]] || \
              [[ "${{ needs.build.result }}" != "success" ]] || \
              [[ "${{ needs.file-size-check.result }}" != "success" ]] || \
-             [[ "${{ needs.vulnerability-check.result }}" != "success" ]]; then
+             [[ "${{ needs.vulnerability-check.result }}" != "success" ]] || \
+             [[ "${{ needs.menubar-tests.result }}" != "success" ]]; then
             echo "One or more required jobs failed"
             exit 1
           fi
