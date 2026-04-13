@@ -165,14 +165,14 @@ Reconciles state against reality. Finds orphaned worktrees (no Claude process ru
 fleet clean
 ```
 
-## Menu Bar (SwiftBar)
+## Menu Bar
 
-Fleet ships a SwiftBar plugin that shows a compact fleet indicator in the
-macOS menu bar. See [`scripts/swiftbar/README.md`](scripts/swiftbar/README.md)
-for install instructions.
+Fleet ships a native macOS menu bar app that shows a compact fleet indicator
+and a popover with per-machine health, swap, and labels. See
+[`menubar/README.md`](menubar/README.md) for install instructions.
 
 At a glance: `3/4 · 2 CC` means 3 of 4 machines are online with 2 live Claude
-Code instances. Click the indicator for a per-machine dropdown with accounts,
+Code instances. Click the indicator for a per-machine popover with accounts,
 labels, memory, and swap.
 
 ## Session Labels and Accounts
