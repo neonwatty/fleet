@@ -2,6 +2,15 @@ import AppKit
 import Combine
 import SwiftUI
 
+enum IconState: Equatable {
+    case loading
+    case error
+    case normal
+    case busy
+    case stressed
+    case allOffline
+}
+
 @MainActor
 final class StatusItemController {
     private let statusItem: NSStatusItem
@@ -36,37 +45,52 @@ final class StatusItemController {
 
     private func render(snapshot: FleetSnapshot?, error: String?) {
         guard let button = statusItem.button else { return }
-
-        if error != nil {
-            button.attributedTitle = Self.titleString("fleet ⚠", color: .systemRed)
-            return
-        }
-        guard let snap = snapshot else {
-            button.attributedTitle = Self.titleString("fleet …", color: .secondaryLabelColor)
-            return
-        }
-
-        let machines = snap.machines
-        let total = machines.count
-        let online = machines.filter { $0.status == "online" }.count
-        let cc = machines.reduce(0) { $0 + $1.ccCount }
-        let hasStressed = machines.contains { $0.health == "stressed" }
-        let hasBusy = machines.contains { $0.health == "busy" }
-
-        let prefix = (hasStressed || hasBusy) ? "⚠ " : ""
-        let text = "\(prefix)\(online)/\(total) · \(cc) CC"
-        let color: NSColor = hasStressed ? .systemRed : (hasBusy ? .systemOrange : .labelColor)
-        button.attributedTitle = Self.titleString(text, color: color)
+        let state = Self.iconState(snapshot: snapshot, error: error)
+        let config = NSImage.SymbolConfiguration(paletteColors: [Self.tintColor(for: state)])
+        let image = NSImage(
+            systemSymbolName: Self.symbolName(for: state),
+            accessibilityDescription: Self.accessibilityLabel(snapshot: snapshot, error: error)
+        )?.withSymbolConfiguration(config)
+        image?.isTemplate = false
+        button.image = image
+        button.contentTintColor = nil
+        button.attributedTitle = NSAttributedString()
     }
 
-    private static func titleString(_ text: String, color: NSColor) -> NSAttributedString {
-        NSAttributedString(
-            string: text,
-            attributes: [
-                .foregroundColor: color,
-                .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-            ]
-        )
+    nonisolated static func iconState(snapshot: FleetSnapshot?, error: String?) -> IconState {
+        if error != nil { return .error }
+        guard let snap = snapshot else { return .loading }
+        if snap.machines.contains(where: { $0.health == "stressed" }) { return .stressed }
+        if snap.machines.contains(where: { $0.health == "busy" }) { return .busy }
+        if !snap.machines.isEmpty && snap.machines.allSatisfy({ $0.status == "offline" }) {
+            return .allOffline
+        }
+        return .normal
+    }
+
+    private static func symbolName(for state: IconState) -> String {
+        switch state {
+        case .error: return "exclamationmark.triangle.fill"
+        default: return "rectangle.stack.fill"
+        }
+    }
+
+    private static func tintColor(for state: IconState) -> NSColor {
+        switch state {
+        case .loading, .allOffline: return .secondaryLabelColor
+        case .error, .stressed: return .systemRed
+        case .busy: return .systemOrange
+        case .normal: return .labelColor
+        }
+    }
+
+    private static func accessibilityLabel(snapshot: FleetSnapshot?, error: String?) -> String {
+        if error != nil { return "Fleet: error" }
+        guard let snap = snapshot else { return "Fleet: loading" }
+        let online = snap.machines.filter { $0.status == "online" }.count
+        let total = snap.machines.count
+        let cc = snap.machines.reduce(0) { $0 + $1.ccCount }
+        return "Fleet: \(online) of \(total) online, \(cc) CC"
     }
 
     @objc private func togglePopover(_ sender: Any?) {
