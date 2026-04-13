@@ -16,10 +16,9 @@ final class StatusItemController {
 
         popover = NSPopover()
         popover.behavior = .transient
-        popover.contentSize = NSSize(width: 320, height: 420)
-        popover.contentViewController = NSHostingController(
-            rootView: PopoverView(client: client)
-        )
+        let hosting = NSHostingController(rootView: PopoverView(client: client))
+        hosting.sizingOptions = [.preferredContentSize]
+        popover.contentViewController = hosting
 
         statusItem.button?.target = self
         statusItem.button?.action = #selector(togglePopover(_:))

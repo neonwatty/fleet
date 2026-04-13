@@ -19,12 +19,12 @@ struct PopoverView: View {
                     .font(.system(size: 12))
             }
 
-            Spacer(minLength: 0)
             Divider()
             footer
         }
         .padding(12)
-        .frame(width: 320, height: 420)
+        .frame(width: 320)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var header: some View {
@@ -50,11 +50,9 @@ struct PopoverView: View {
     }
 
     private func machineList(_ snap: FleetSnapshot) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(snap.machines, id: \.name) { m in
-                    machineCard(m, thresholds: snap.thresholds)
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(snap.machines, id: \.name) { m in
+                machineCard(m, thresholds: snap.thresholds)
             }
         }
     }
