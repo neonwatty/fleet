@@ -92,27 +92,40 @@ Plain Codable structs mirroring `buildStatusJSON` in `cmd/fleet/status_json.go`.
 ```swift
 struct FleetSnapshot: Codable {
     let version: String
+    let timestamp: String
+    let thresholds: Thresholds
     let machines: [MachineStatus]
     let sessions: [SessionStatus]
-    let tunnels: [TunnelStatus]
-    let thresholds: Thresholds
 }
 
 struct MachineStatus: Codable {
     let name: String
     let status: String           // "online" | "offline"
-    let health: String           // "free" | "ok" | "busy" | "stressed"
+    let health: String           // "free" | "ok" | "busy" | "stressed" | "offline"
     let memAvailablePct: Int
     let swapGB: Double
     let ccCount: Int
+    let score: Double
     let accounts: [String]
     let labels: [LabelStatus]
 }
 
 struct LabelStatus: Codable {
     let name: String
-    let sessionId: String?
     let live: Bool
+    let sessionId: String        // may be "" (Go uses omitempty, absent → "")
+}
+
+struct SessionStatus: Codable {
+    let id: String
+    let project: String
+    let machine: String
+    let branch: String
+    let account: String?
+    let label: String?
+    let tunnelLocalPort: Int
+    let tunnelRemotePort: Int
+    let startedAt: String
 }
 
 struct Thresholds: Codable {
@@ -121,7 +134,9 @@ struct Thresholds: Codable {
 }
 ```
 
-`SessionStatus` and `TunnelStatus` are included as Codable structs so decode doesn't fail when the JSON contains those fields, but `PopoverView` does not render them in v1.
+The matching CodingKeys use snake_case (`mem_available_pct`, `swap_gb`, `cc_count`, `session_id`, `tunnel_local_port`, `tunnel_remote_port`, `started_at`, `swap_warn_mb`, `swap_high_mb`).
+
+`SessionStatus` is included as a Codable struct so decode doesn't fail, but `PopoverView` does not render sessions in v1. There is no separate `tunnels` top-level field — tunnel ports live inside each session.
 
 ### `StatusItemController.swift` (~80 lines) — presentation layer
 - Owns `NSStatusItem` (variable length) and `NSPopover` (transient behavior, 320×420 content size, `NSHostingController(rootView: PopoverView(client: client))`).
