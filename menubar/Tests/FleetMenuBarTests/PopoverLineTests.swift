@@ -59,6 +59,20 @@ final class PopoverLineTests: XCTestCase {
         let line = PopoverView.renderMachineLine(m, thresholds: thresholds)
         XCTAssertTrue(line.contains("1.9GB swap"), "line = \(line)")
     }
+
+    func testOpenFullDashboardCommandUsesOsascript() {
+        let (path, args) = PopoverView.openFullDashboardCommand()
+        XCTAssertEqual(path, "/usr/bin/osascript")
+        XCTAssertTrue(args.contains("-e"))
+        XCTAssertTrue(
+            args.contains(where: { $0.contains("do script \"fleet status\"") }),
+            "args should tell Terminal to run fleet status, got: \(args)"
+        )
+        XCTAssertTrue(
+            args.contains(where: { $0.contains("activate") }),
+            "args should activate Terminal to bring it to front, got: \(args)"
+        )
+    }
 }
 
 // Test-only helper so we can build a MachineStatus with custom labels.
