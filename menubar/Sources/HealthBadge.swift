@@ -1,25 +1,15 @@
 import SwiftUI
 
 enum HealthBand: Equatable {
-    case normal      // default foreground
-    case free        // green
-    case ok          // muted green / secondary
-    case warn        // orange
-    case high        // red
-    case offline     // gray
+    case normal
+    case free
+    case ok
+    case warn
+    case high
+    case offline
 }
 
-struct HealthBadge: View {
-    let health: String
-    let swapMB: Double
-    let thresholds: Thresholds
-
-    var body: some View {
-        Text(health)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundColor(Self.color(for: Self.healthBand(health: health)))
-    }
-
+enum HealthBadge {
     static func swapBand(swapMB: Double, thresholds: Thresholds) -> HealthBand {
         if swapMB >= Double(thresholds.swapHighMB) { return .high }
         if swapMB >= Double(thresholds.swapWarnMB) { return .warn }
