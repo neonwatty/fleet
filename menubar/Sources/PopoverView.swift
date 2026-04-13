@@ -120,10 +120,21 @@ struct PopoverView: View {
     }
 
     private static func openFullDashboard() {
+        let (path, args) = Self.openFullDashboardCommand()
         let proc = Process()
-        proc.launchPath = "/usr/bin/open"
-        proc.arguments = ["-a", "Terminal", "-n", "--args", "fleet", "status"]
+        proc.launchPath = path
+        proc.arguments = args
         try? proc.run()
+    }
+
+    /// Returns the command used to open the full dashboard in Terminal.
+    /// Separated so tests can assert the exact invocation without spawning a process.
+    static func openFullDashboardCommand() -> (path: String, args: [String]) {
+        (
+            "/usr/bin/osascript",
+            ["-e", "tell application \"Terminal\" to do script \"fleet status\"",
+             "-e", "tell application \"Terminal\" to activate"]
+        )
     }
 
     // MARK: - Pure helpers (testable)
