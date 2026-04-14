@@ -51,7 +51,12 @@ menubar-install: menubar-build
 	mkdir -p $(HOME)/Applications
 	rm -rf $(HOME)/Applications/FleetMenuBar.app
 	cp -R menubar/build/Build/Products/Release/FleetMenuBar.app $(HOME)/Applications/
-	open $(HOME)/Applications/FleetMenuBar.app
+	@if [ -f "$(HOME)/Library/LaunchAgents/com.neonwatty.FleetMenuBar.plist" ]; then \
+	  echo "LaunchAgent detected — restarting managed instance"; \
+	  launchctl kickstart -k "gui/$$(id -u)/com.neonwatty.FleetMenuBar"; \
+	else \
+	  open $(HOME)/Applications/FleetMenuBar.app; \
+	fi
 
 menubar-install-login:
 	./menubar/scripts/install-login-item.sh

@@ -37,6 +37,10 @@ cat > "${PLIST_PATH}" <<EOF
 </plist>
 EOF
 
+# Kill any unmanaged instance started by `open` during `make menubar-install`
+# so we don't end up with one launchd-managed process alongside an orphan.
+pkill -x FleetMenuBar 2>/dev/null || true
+
 # Unload if already loaded, then load fresh.
 launchctl unload "${PLIST_PATH}" 2>/dev/null || true
 launchctl load "${PLIST_PATH}"
