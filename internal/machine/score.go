@@ -18,9 +18,7 @@ func Score(h Health) float64 {
 		swapPenalty = (h.SwapUsedMB / h.SwapTotalMB) * 100 * 0.5
 	}
 
-	claudePenalty := float64(h.ClaudeCount) * 5
-
-	return availPct - swapPenalty - claudePenalty
+	return availPct - swapPenalty
 }
 
 func ScoreLabel(score float64) string {

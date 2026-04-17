@@ -211,14 +211,15 @@ default_account = "personal-max"
 Fleet ranks machines using a simple formula:
 
 ```
-score = available_memory_% - (swap_used_% × 0.5) - (claude_instances × 5)
+score = available_memory_% - (swap_used_% × 0.5)
 ```
 
 | Component | What it measures |
 |-----------|-----------------|
 | `available_memory_%` | (free + inactive pages) / total RAM. Inactive pages are reclaimable on macOS |
 | `swap_used_% × 0.5` | Penalty for swap pressure, halved so it doesn't dominate |
-| `claude_instances × 5` | Penalty per running Claude Code session |
+
+Claude Code instance count is still probed and displayed for informational purposes but does not affect the score — its memory footprint is already captured in `available_memory_%`.
 
 The score maps to a label:
 
@@ -229,7 +230,7 @@ The score maps to a label:
 | busy | >= -20 | Under load, will work but slower |
 | stressed | < -20 | Heavy swap, likely sluggish |
 
-The `free` label means *spare capacity*, not *no activity* — a machine with 2 CC instances and lots of RAM left can still land in `free`.
+The `free` label means *spare capacity*, not *no activity* — a machine actively running CC instances can land in `free` as long as memory headroom is sufficient.
 
 ## OAuth Tunnel Pinning
 

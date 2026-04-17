@@ -52,8 +52,9 @@ For local launches (MacBook Air chosen as target), SSH is skipped and commands r
    available_memory = (pages_free + pages_inactive) * page_size
    available_pct = available_memory / total_memory * 100
    swap_used_pct = swap_used / swap_total * 100  (0 if no swap allocated)
-   score = available_pct - (swap_used_pct * 0.5) - (claude_count * 10)
+   score = available_pct - (swap_used_pct * 0.5)
    ```
+   Claude Code instance count is probed and displayed but does not affect the score — its memory footprint is already captured in `available_pct`.
    Note: macOS "inactive" pages are reclaimable, so they count as available.
 4. If best score < `stress_threshold` → prompt: "All machines stressed, launch anyway on <best>? [y/n]"
 5. If `--target` given, skip ranking and use that machine

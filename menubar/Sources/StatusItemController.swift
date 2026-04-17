@@ -80,7 +80,7 @@ final class StatusItemController {
         case .loading, .allOffline: return .secondaryLabelColor
         case .error, .stressed: return .systemRed
         case .busy: return .systemOrange
-        case .normal: return .labelColor
+        case .normal: return .systemGreen
         }
     }
 
