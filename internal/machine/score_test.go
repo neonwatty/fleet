@@ -18,7 +18,6 @@ func TestScore(t *testing.T) {
 				AvailMemory: 12 * 1024 * 1024 * 1024,
 				SwapTotalMB: 4096,
 				SwapUsedMB:  0,
-				ClaudeCount: 0,
 			},
 			wantSign: "positive",
 		},
@@ -30,7 +29,6 @@ func TestScore(t *testing.T) {
 				AvailMemory: 1 * 1024 * 1024 * 1024,
 				SwapTotalMB: 7168,
 				SwapUsedMB:  6614,
-				ClaudeCount: 5,
 			},
 			wantSign: "negative",
 		},
@@ -62,8 +60,8 @@ func TestScore(t *testing.T) {
 
 func TestPickBest(t *testing.T) {
 	healths := []Health{
-		{Name: "mm1", Online: true, TotalMemory: 16e9, AvailMemory: 4e9, SwapTotalMB: 4096, SwapUsedMB: 2000, ClaudeCount: 3},
-		{Name: "mm2", Online: true, TotalMemory: 16e9, AvailMemory: 12e9, SwapTotalMB: 4096, SwapUsedMB: 100, ClaudeCount: 0},
+		{Name: "mm1", Online: true, TotalMemory: 16e9, AvailMemory: 4e9, SwapTotalMB: 4096, SwapUsedMB: 2000},
+		{Name: "mm2", Online: true, TotalMemory: 16e9, AvailMemory: 12e9, SwapTotalMB: 4096, SwapUsedMB: 100},
 		{Name: "mm3", Online: false},
 	}
 
