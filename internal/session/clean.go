@@ -2,9 +2,11 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,6 +32,7 @@ type CleanResult struct {
 	Alive       []Session
 	Orphans     []Session
 	Stales      []Session
+	Failed      []Session
 	ResetLabels int
 }
 
@@ -81,50 +84,65 @@ func Clean(ctx context.Context, cfg *config.Config, statePath string) error {
 }
 
 func CleanWithOptions(ctx context.Context, cfg *config.Config, statePath string, opts CleanOptions) (CleanResult, error) {
-	state, err := LoadState(statePath)
+	var result CleanResult
+	var cleanupErr error
+	err := WithStateLock(statePath, func(state *State) error {
+		checker := MakeRemoteChecker(ctx, cfg.Machines)
+		alive, orphans, stales := ClassifySessions(state.Sessions, checker)
+		result = CleanResult{
+			Alive:       alive,
+			Orphans:     orphans,
+			Stales:      stales,
+			ResetLabels: countDanglingLabels(state, sessionIDSet(alive)),
+		}
+		printCleanPlan(result, opts)
+
+		if opts.DryRun {
+			fmt.Println("Dry run: no state, worktrees, or tunnels changed.")
+			return errSkipStateSave
+		}
+		if len(state.Sessions) == 0 && result.ResetLabels == 0 {
+			fmt.Println("No sessions in state. Nothing to clean.")
+			return errSkipStateSave
+		}
+
+		survivors := append([]Session{}, alive...)
+		for _, sess := range orphans {
+			if err := cleanOrphan(ctx, cfg, sess); err != nil {
+				fmt.Printf("  Failed to clean orphan: %s on %s (%s): %v\n",
+					sess.Project, sess.Machine, sess.WorktreePath, err)
+				result.Failed = append(result.Failed, sess)
+				survivors = append(survivors, sess)
+				cleanupErr = errors.Join(cleanupErr, err)
+			}
+		}
+		for _, sess := range stales {
+			fmt.Printf("  Removing stale state: %s on %s (%s)\n", sess.Project, sess.Machine, sess.WorktreePath)
+		}
+
+		state.Sessions = survivors
+		if n := resetDanglingLabels(state, sessionIDSet(survivors)); n > 0 {
+			fmt.Printf("  Reset %d dangling label(s) to orphan status\n", n)
+		}
+		return nil
+	})
+	if errors.Is(err, errSkipStateSave) {
+		return result, nil
+	}
 	if err != nil {
-		return CleanResult{}, fmt.Errorf("load state: %w", err)
+		return result, err
 	}
-
-	checker := MakeRemoteChecker(ctx, cfg.Machines)
-	alive, orphans, stales := ClassifySessions(state.Sessions, checker)
-	result := CleanResult{
-		Alive:       alive,
-		Orphans:     orphans,
-		Stales:      stales,
-		ResetLabels: countDanglingLabels(state, sessionIDSet(alive)),
-	}
-	printCleanPlan(result, opts)
-
-	if opts.DryRun {
-		fmt.Println("Dry run: no state, worktrees, or tunnels changed.")
-		return result, nil
-	}
-	if len(state.Sessions) == 0 && result.ResetLabels == 0 {
-		fmt.Println("No sessions in state. Nothing to clean.")
-		return result, nil
-	}
-
-	for _, sess := range orphans {
-		cleanOrphan(ctx, cfg.Machines, sess)
-	}
-	for _, sess := range stales {
-		fmt.Printf("  Removing stale state: %s on %s (%s)\n", sess.Project, sess.Machine, sess.WorktreePath)
-	}
-
-	state.Sessions = alive
-	if n := resetDanglingLabels(state, sessionIDSet(alive)); n > 0 {
-		fmt.Printf("  Reset %d dangling label(s) to orphan status\n", n)
-	}
-	if err := Save(statePath, state); err != nil {
-		return CleanResult{}, fmt.Errorf("save state: %w", err)
+	if cleanupErr != nil {
+		return result, cleanupErr
 	}
 
 	fmt.Printf("Cleaned %d sessions.\n", result.Cleaned())
-	killOrphanTunnels(alive)
+	killOrphanTunnels(result.Alive)
 
 	return result, nil
 }
+
+var errSkipStateSave = errors.New("skip state save")
 
 func remotePathExists(ctx context.Context, m config.Machine, path string) bool {
 	if path == "" {
@@ -142,20 +160,55 @@ func remoteClaudeOwnsWorktree(ctx context.Context, m config.Machine, worktreePat
 	return err == nil
 }
 
-func cleanOrphan(ctx context.Context, machines []config.Machine, sess Session) {
-	m, ok := findSessionMachine(machines, sess.Machine)
+func cleanOrphan(ctx context.Context, cfg *config.Config, sess Session) error {
+	if err := validateWorktreeDeletePath(cfg.Settings.WorktreeBase, sess.WorktreePath); err != nil {
+		return err
+	}
+
+	m, ok := findSessionMachine(cfg.Machines, sess.Machine)
 	if !ok {
 		fmt.Printf("  Removing orphan state with missing machine: %s on %s (%s)\n",
 			sess.Project, sess.Machine, sess.WorktreePath)
-		return
+		return nil
 	}
 
 	fmt.Printf("  Cleaning orphan: %s on %s (%s)\n", sess.Project, sess.Machine, sess.WorktreePath)
 	rmCmd := fmt.Sprintf("rm -rf -- %s", shellQuotePath(sess.WorktreePath))
-	_, _ = fleetexec.RunWithTimeout(ctx, m, rmCmd, 10*time.Second)
+	if _, err := fleetexec.RunWithTimeout(ctx, m, rmCmd, 10*time.Second); err != nil {
+		return fmt.Errorf("remove worktree: %w", err)
+	}
 
 	pruneCmd := fmt.Sprintf("git -C %s worktree prune 2>/dev/null || true", shellQuotePath(bareRepoPathForSession(sess)))
-	_, _ = fleetexec.RunWithTimeout(ctx, m, pruneCmd, 10*time.Second)
+	if _, err := fleetexec.RunWithTimeout(ctx, m, pruneCmd, 10*time.Second); err != nil {
+		return fmt.Errorf("prune worktree: %w", err)
+	}
+	return nil
+}
+
+func validateWorktreeDeletePath(base, target string) error {
+	if base == "" {
+		return fmt.Errorf("settings.worktree_base is required before deleting worktrees")
+	}
+	if target == "" {
+		return fmt.Errorf("refusing to delete empty worktree path")
+	}
+
+	cleanBase := filepath.Clean(base)
+	cleanTarget := filepath.Clean(target)
+	if cleanTarget == "." || cleanTarget == string(filepath.Separator) {
+		return fmt.Errorf("refusing to delete unsafe worktree path %q", target)
+	}
+	if cleanTarget == cleanBase {
+		return fmt.Errorf("refusing to delete worktree base %q", target)
+	}
+	rel, err := filepath.Rel(cleanBase, cleanTarget)
+	if err != nil {
+		return fmt.Errorf("compare worktree path: %w", err)
+	}
+	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return fmt.Errorf("refusing to delete %q outside worktree base %q", target, base)
+	}
+	return nil
 }
 
 func findSessionMachine(machines []config.Machine, name string) (config.Machine, bool) {

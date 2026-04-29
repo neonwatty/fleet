@@ -30,6 +30,13 @@ make build
 cp bin/fleet /opt/homebrew/bin/fleet
 ```
 
+Release archives also include install/uninstall helpers:
+
+```bash
+scripts/install.sh
+scripts/uninstall.sh
+```
+
 Requires Go 1.26+ and SSH access to your machines (configured in `~/.ssh/config`).
 
 ## Setup

@@ -1,7 +1,10 @@
 package tunnel
 
 import (
+	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -46,6 +49,37 @@ func TestAllocatePortExhausted(t *testing.T) {
 	}
 }
 
+func TestAllocatePortSkipsPortInUseByProcess(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close() //nolint:errcheck
+
+	port := ln.Addr().(*net.TCPAddr).Port
+	got, err := AllocatePort(port, port+1, map[int]bool{})
+	if err != nil {
+		t.Fatalf("AllocatePort() error: %v", err)
+	}
+	if got != port+1 {
+		t.Fatalf("AllocatePort() = %d, want %d", got, port+1)
+	}
+}
+
+func TestAllocatePortPinnedRejectsPortInUseByProcess(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close() //nolint:errcheck
+
+	port := ln.Addr().(*net.TCPAddr).Port
+	_, err = AllocatePortPinned(port, map[int]bool{})
+	if err == nil || !strings.Contains(err.Error(), "another process") {
+		t.Fatalf("AllocatePortPinned() error = %v, want process conflict", err)
+	}
+}
+
 func TestStopKillsAndWaitsForProcess(t *testing.T) {
 	cmd := exec.Command("sleep", "10")
 	if err := cmd.Start(); err != nil {
@@ -70,4 +104,28 @@ func TestBuildSSHForwardArgsUsesConfiguredUser(t *testing.T) {
 	if !strings.Contains(joined, "neonwatty@mm1") {
 		t.Fatalf("args missing user@host: %v", args)
 	}
+}
+
+func TestStartFailsWhenSSHExitsDuringStartup(t *testing.T) {
+	dir := t.TempDir()
+	fakeSSH := filepath.Join(dir, "ssh")
+	if err := os.WriteFile(fakeSSH, []byte("#!/bin/bash\nexit 42\n"), 0755); err != nil {
+		t.Fatalf("write fake ssh: %v", err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	_, err := Start(config.Machine{Name: "mm1", Host: "mm1"}, freePort(t), 3000)
+	if err == nil || !strings.Contains(err.Error(), "tunnel exited during startup") {
+		t.Fatalf("Start() error = %v, want startup exit error", err)
+	}
+}
+
+func freePort(t *testing.T) int {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close() //nolint:errcheck
+	return ln.Addr().(*net.TCPAddr).Port
 }

@@ -19,15 +19,13 @@ func ResolveAccount(explicit string, m config.Machine) string {
 // SetSessionAccount updates the Account field of an existing session by ID.
 // Returns an error if the session is not found.
 func SetSessionAccount(statePath, sessionID, account string) error {
-	s, err := LoadState(statePath)
-	if err != nil {
-		return err
-	}
-	for i := range s.Sessions {
-		if s.Sessions[i].ID == sessionID {
-			s.Sessions[i].Account = account
-			return Save(statePath, s)
+	return WithStateLock(statePath, func(s *State) error {
+		for i := range s.Sessions {
+			if s.Sessions[i].ID == sessionID {
+				s.Sessions[i].Account = account
+				return nil
+			}
 		}
-	}
-	return fmt.Errorf("session %q not found", sessionID)
+		return fmt.Errorf("session %q not found", sessionID)
+	})
 }

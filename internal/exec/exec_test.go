@@ -2,6 +2,8 @@ package exec
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -90,4 +92,36 @@ func TestRunFailureIncludesMachineCommandAndStderr(t *testing.T) {
 			t.Fatalf("error = %q, want to contain %q", msg, want)
 		}
 	}
+}
+
+func TestRunRemoteUsesSSHFromPath(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "ssh.log")
+	fakeSSH := filepath.Join(dir, "ssh")
+	script := "#!/bin/bash\nprintf '%s\\n' \"$*\" > " + shellQuote(logPath) + "\nprintf 'remote-ok\\n'\n"
+	if err := os.WriteFile(fakeSSH, []byte(script), 0755); err != nil {
+		t.Fatalf("write fake ssh: %v", err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	out, err := Run(context.Background(), config.Machine{Name: "mm1", Host: "mm1", User: "me"}, "echo remote")
+	if err != nil {
+		t.Fatalf("Run() error: %v", err)
+	}
+	if strings.TrimSpace(out) != "remote-ok" {
+		t.Fatalf("Run() = %q, want remote-ok", out)
+	}
+	logged, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read fake ssh log: %v", err)
+	}
+	for _, want := range []string{"me@mm1", "BatchMode=yes", "echo remote"} {
+		if !strings.Contains(string(logged), want) {
+			t.Fatalf("fake ssh args = %q, want %q", logged, want)
+		}
+	}
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
