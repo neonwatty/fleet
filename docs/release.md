@@ -23,8 +23,26 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
+Release candidate tags use the same workflow and are published as GitHub
+prereleases automatically:
+
+```sh
+git tag v0.1.0-rc4
+git push origin v0.1.0-rc4
+```
+
 The release workflow runs Go tests, menu bar tests, packages the CLI and menu
 bar app, and uploads checksummed artifacts to the GitHub release.
+
+Release notes include generated GitHub changes plus concise install guidance:
+
+- Download `fleet_VERSION_darwin_arm64.tar.gz` and, when installing the menu
+  bar app too, `FleetMenuBar_VERSION_darwin_arm64.zip` into the same directory.
+- Verify downloads with the matching `.sha256` files.
+- Extract the CLI archive and run `scripts/install.sh`. The installer copies
+  `fleet` to `/opt/homebrew/bin`, initializes `~/.fleet` when needed, and
+  installs `FleetMenuBar.app` when it finds the menu bar zip next to the
+  extracted CLI directory.
 
 ## Signing And Notarization
 

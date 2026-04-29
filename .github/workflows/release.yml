@@ -41,6 +41,34 @@ jobs:
             exit 0
           fi
           scripts/sign-notarize-menubar.sh
+      - name: Write release notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          ## Install
+
+          Download the CLI archive and, if you want the menu bar app, the menu bar zip into the same directory:
+
+          - \`fleet_${VERSION}_darwin_arm64.tar.gz\`
+          - \`FleetMenuBar_${VERSION}_darwin_arm64.zip\`
+
+          Verify downloads with the matching \`.sha256\` files:
+
+          \`\`\`sh
+          shasum -c *.sha256
+          \`\`\`
+
+          Install:
+
+          \`\`\`sh
+          tar -xzf fleet_${VERSION}_darwin_arm64.tar.gz
+          cd fleet_${VERSION}_darwin_arm64
+          scripts/install.sh
+          \`\`\`
+
+          The installer copies \`fleet\` to \`/opt/homebrew/bin\`, initializes \`~/.fleet\` when needed, and installs \`FleetMenuBar.app\` when the zip is next to the extracted CLI directory. Set \`INSTALL_MENUBAR=0\` for CLI-only installs.
+
+          EOF
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
@@ -49,4 +77,6 @@ jobs:
             dist/*.tar.gz.sha256
             dist/*.zip
             dist/*.zip.sha256
+          body_path: ${{ runner.temp }}/release-notes.md
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-rc') }}
