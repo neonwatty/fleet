@@ -23,6 +23,22 @@ A CLI for distributing Claude Code instances across a local Mac fleet. Auto-pick
 
 ## Install
 
+From a GitHub release, download the CLI tarball and optionally the menu bar
+zip into the same directory:
+
+```bash
+tar -xzf fleet_VERSION_darwin_arm64.tar.gz
+cd fleet_VERSION_darwin_arm64
+scripts/install.sh
+```
+
+The installer copies `fleet` to `/opt/homebrew/bin`, initializes `~/.fleet` if
+needed, and installs `FleetMenuBar.app` when it finds a matching menu bar zip
+next to the extracted CLI directory. Set `INSTALL_MENUBAR=0` to install only
+the CLI, or override destinations with `PREFIX` and `APP_DIR`.
+
+From source:
+
 ```bash
 git clone https://github.com/neonwatty/fleet.git
 cd fleet
@@ -30,7 +46,7 @@ make build
 cp bin/fleet /opt/homebrew/bin/fleet
 ```
 
-Release archives also include install/uninstall helpers:
+Release archives include install/uninstall helpers:
 
 ```bash
 scripts/install.sh

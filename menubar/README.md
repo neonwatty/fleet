@@ -11,6 +11,13 @@ Native macOS menu bar app for fleet. Shows `{online}/{total} · {cc} CC` in the 
 
 ## Install
 
+From a GitHub release, download `FleetMenuBar_VERSION_darwin_arm64.zip`
+alongside the CLI tarball before running the CLI archive's `scripts/install.sh`.
+The installer finds the zip, expands it, and copies `FleetMenuBar.app` to
+`~/Applications`.
+
+From source:
+
 ```sh
 cd fleet
 make menubar-install

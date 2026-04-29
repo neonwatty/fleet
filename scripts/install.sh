@@ -6,8 +6,27 @@ BIN_DIR="${BIN_DIR:-$PREFIX/bin}"
 APP_DIR="${APP_DIR:-$HOME/Applications}"
 INSTALL_MENUBAR="${INSTALL_MENUBAR:-1}"
 INSTALL_LOGIN_ITEM="${INSTALL_LOGIN_ITEM:-0}"
+MENUBAR_ZIP="${MENUBAR_ZIP:-}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP_DIR=""
+cleanup() {
+  if [ -n "$TMP_DIR" ]; then
+    rm -rf "$TMP_DIR"
+  fi
+}
+trap cleanup EXIT
+
+find_menubar_zip() {
+  local candidate
+  for candidate in "$MENUBAR_ZIP" "$ROOT"/FleetMenuBar_*.zip "$(dirname "$ROOT")"/FleetMenuBar_*.zip; do
+    if [ -f "$candidate" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+}
+
 if [ -x "$ROOT/fleet" ]; then
   FLEET_BIN="$ROOT/fleet"
 else
@@ -33,6 +52,16 @@ echo "Installed fleet to $BIN_DIR/fleet"
 if [ "$INSTALL_MENUBAR" = "1" ]; then
   if [ -d "$ROOT/FleetMenuBar.app" ]; then
     MENUBAR_APP="$ROOT/FleetMenuBar.app"
+  fi
+  if [ ! -d "$MENUBAR_APP" ]; then
+    MENUBAR_ZIP_PATH="$(find_menubar_zip || true)"
+    if [ -n "$MENUBAR_ZIP_PATH" ]; then
+      TMP_DIR="$(mktemp -d)"
+      unzip -q "$MENUBAR_ZIP_PATH" -d "$TMP_DIR"
+      if [ -d "$TMP_DIR/FleetMenuBar.app" ]; then
+        MENUBAR_APP="$TMP_DIR/FleetMenuBar.app"
+      fi
+    fi
   fi
   if [ ! -d "$MENUBAR_APP" ] && [ -f "$ROOT/menubar/project.yml" ]; then
     echo "Building FleetMenuBar.app..."
