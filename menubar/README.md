@@ -46,7 +46,8 @@ Two knobs, both in `UserDefaults` domain `com.neonwatty.FleetMenuBar`:
 | `refreshInterval`  | Double | `10.0`   | Seconds between background polls                 |
 | `fleetBinPath`     | String | (empty)  | Override for `fleet` binary path                  |
 
-Set with `defaults write`:
+Set these in the native Preferences window from the popover, or with
+`defaults write`:
 
 ```sh
 defaults write com.neonwatty.FleetMenuBar refreshInterval -int 5
@@ -59,6 +60,7 @@ Binary resolution fallback chain: `fleetBinPath` default → `$FLEET_BIN` env va
 
 - **Click menu bar item** — toggles the popover. On open, the app refreshes fleet state immediately (not just on the next 10s tick).
 - **"Open full dashboard"** in the popover footer — launches `fleet status` (the TUI) in a new Terminal.app window.
+- **"Preferences"** in the popover footer — opens settings for the fleet binary path and refresh interval.
 - **"Quit"** — `NSApp.terminate(nil)`.
 
 ## Development

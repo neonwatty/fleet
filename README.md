@@ -37,6 +37,8 @@ Requires Go 1.26+ and SSH access to your machines (configured in `~/.ssh/config`
 Copy the example config and edit for your machines:
 
 ```bash
+fleet init
+# or manually:
 mkdir -p ~/.fleet
 cp config.example.toml ~/.fleet/config.toml
 ```
@@ -63,17 +65,31 @@ enabled = true
 ```
 
 Each machine entry uses the SSH host alias from `~/.ssh/config` — fleet shells out to the system `ssh` binary, so it inherits your keys, ControlMaster, and aliases.
+If `user` is set, fleet connects to `user@host`; otherwise it connects to
+`host` exactly as configured.
 
 ## Commands
 
-### `fleet launch <org/repo>`
+Global flags:
+
+```bash
+fleet --config /path/to/config.toml --state /path/to/state.json status --json
+```
+
+`--config` defaults to `~/.fleet/config.toml`; `--state` defaults to
+`~/.fleet/state.json`. Use these for isolated test fleets, alternate machine
+groups, or menu bar instances pointed at a non-default install.
+
+### `fleet launch <org/repo|git-url>`
 
 Auto-picks the healthiest machine and launches Claude Code there.
 
 ```bash
 fleet launch neonwatty/my-project           # auto-pick best machine
+fleet launch git@github.com:org/repo.git    # clone from a git URL
 fleet launch neonwatty/my-project -t mm2    # force a specific machine
 fleet launch neonwatty/my-project -b feat   # check out a specific branch
+fleet launch neonwatty/my-project --cmd zsh # override the command run in the worktree
 ```
 
 What happens:
@@ -123,8 +139,8 @@ Opens a live TUI dashboard with four panels:
 | `tab` / `shift+tab` | Switch between panels |
 | `j` / `k` | Navigate rows. On Machines panel, also selects which machine's processes are shown |
 | `o` | Open tunnel URL in browser (Tunnels panel) |
-| `x` | Kill a fleet session and clean up its worktree/tunnel (Sessions panel) |
-| `d` | Kill a process group on the selected machine (Processes panel) |
+| `x` | Confirm, then kill a fleet session and clean up its worktree/tunnel (Sessions panel) |
+| `d` | Confirm, then kill a process group on the selected machine (Processes panel) |
 | `q` / `ctrl+c` | Quit |
 
 Pass `--json` to emit fleet state as JSON instead of opening the TUI — used by the menu bar app and any other scripted consumer:
@@ -162,13 +178,26 @@ Per-machine defaults live in `config.toml` via `default_account` — sessions la
 Reconciles state against reality. Finds orphaned worktrees (no Claude process running), stale state entries, and orphaned tunnel processes — cleans them all up. Also clears dangling `SessionID` references on labels whose sessions no longer exist, converting them to orphan labels.
 
 ```bash
+fleet init
 fleet clean
 fleet clean --dry-run
 fleet doctor
 fleet doctor --machine mm1
+fleet doctor --fix
 ```
 
-`fleet doctor` is read-only. It checks config loading, state readability, SSH reachability, and configured remote base directories, then prints the same cleanup reconciliation plan as `fleet clean --dry-run`.
+`fleet init` writes `~/.fleet/config.toml` if it does not already exist. Use
+`fleet init --force` to overwrite it, or `fleet init --path /custom/path.toml`
+to write somewhere else.
+The root `--config` flag also changes the default init target, so
+`fleet --config /tmp/fleet.toml init` writes that file without needing
+`--path`.
+
+`fleet doctor` is read-only by default. It checks config loading, state
+readability, SSH reachability, and configured remote base directories, then
+prints the same cleanup reconciliation plan as `fleet clean --dry-run`.
+Pass `--fix` to create missing configured worktree and bare-repo base
+directories.
 
 ## Menu Bar
 
@@ -244,9 +273,17 @@ Most projects register OAuth callbacks to `localhost:3000`. If fleet auto-assign
 ```toml
 dev_port = 3000
 tunnel_local_port = 3000
+launch_command = "claude"
 ```
 
 This tells fleet to forward `localhost:3000` on the MacBook to port `3000` on the remote machine, so OAuth callbacks work unchanged.
+`launch_command` is optional; it sets the command fleet runs in the worktree
+after setup. The `fleet launch --cmd ...` flag overrides it.
+
+If `.fleet.toml` is absent, fleet checks `package.json`'s `dev` script for
+`PORT=1234`, `-p 1234`, or `--port 1234`. It also recognizes common defaults:
+Vite/Astro use `5173`; Next/Remix use `3000`; otherwise fleet falls back to
+`3000`.
 
 ## Development
 
@@ -254,8 +291,12 @@ This tells fleet to forward `localhost:3000` on the MacBook to port `3000` on th
 make test           # Run all tests with race detector
 make lint           # Run golangci-lint
 make build          # Build to bin/fleet
+make build VERSION=0.2.0 # Build with version metadata
+make dist VERSION=0.2.0  # Build dist/fleet_0.2.0_darwin_arm64.tar.gz
 make check          # Run all checks (fmt, lint, vet, test, build)
 ```
+
+CI currently enforces a Go coverage floor of 50%.
 
 ## License
 

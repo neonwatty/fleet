@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func accountCmd() *cobra.Command {
+func accountCmd(app *commandContext) *cobra.Command {
 	var clear bool
 
 	cmd := &cobra.Command{
@@ -24,7 +24,7 @@ Examples:
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sessionID := args[0]
-			statePath := session.DefaultStatePath()
+			statePath := app.statePath
 			if clear {
 				if len(args) != 1 {
 					return fmt.Errorf("--clear takes no account name")

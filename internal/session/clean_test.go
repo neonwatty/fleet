@@ -193,6 +193,50 @@ func TestCleanResultCleaned(t *testing.T) {
 	}
 }
 
+func TestTunnelLocalPortFromPSLine(t *testing.T) {
+	tests := []struct {
+		name string
+		line string
+		port int
+		ok   bool
+	}{
+		{
+			name: "separate forward flag",
+			line: "12345 ssh -N -L 4001:localhost:3000 -o ExitOnForwardFailure=yes neonwatty@mm1",
+			port: 4001,
+			ok:   true,
+		},
+		{
+			name: "combined forward flag",
+			line: "12345 ssh -N -L4002:localhost:3000 mm1",
+			port: 4002,
+			ok:   true,
+		},
+		{
+			name: "no tunnel",
+			line: "12345 ssh mm1 uptime",
+			ok:   false,
+		},
+		{
+			name: "invalid port",
+			line: "12345 ssh -N -L nope:localhost:3000 mm1",
+			ok:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			port, ok := tunnelLocalPortFromPSLine(tt.line)
+			if ok != tt.ok {
+				t.Fatalf("ok = %v, want %v", ok, tt.ok)
+			}
+			if port != tt.port {
+				t.Fatalf("port = %d, want %d", port, tt.port)
+			}
+		})
+	}
+}
+
 func ids(sessions []Session) []string {
 	out := make([]string, len(sessions))
 	for i, s := range sessions {

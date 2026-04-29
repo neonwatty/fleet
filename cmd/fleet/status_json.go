@@ -49,6 +49,7 @@ type sessionStatus struct {
 	Machine          string `json:"machine"`
 	Branch           string `json:"branch"`
 	Account          string `json:"account,omitempty"`
+	LaunchCommand    string `json:"launch_command,omitempty"`
 	Label            string `json:"label,omitempty"`
 	TunnelLocalPort  int    `json:"tunnel_local_port"`
 	TunnelRemotePort int    `json:"tunnel_remote_port"`
@@ -105,6 +106,7 @@ func buildStatusJSON(
 			Machine:          s.Machine,
 			Branch:           s.Branch,
 			Account:          s.Account,
+			LaunchCommand:    s.LaunchCommand,
 			Label:            sessionLabelName(labels, s),
 			TunnelLocalPort:  s.Tunnel.LocalPort,
 			TunnelRemotePort: s.Tunnel.RemotePort,
@@ -150,14 +152,14 @@ func sessionLabelName(labels map[string][]session.MachineLabel, s session.Sessio
 }
 
 // runStatusJSON is called from the status command when --json is set.
-func runStatusJSON(cfg *config.Config) error {
+func runStatusJSON(cfg *config.Config, statePath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	enabled := cfg.EnabledMachines()
 	healths := machine.ProbeAll(ctx, enabled)
 
-	state, err := session.LoadState(session.DefaultStatePath())
+	state, err := session.LoadState(statePath)
 	if err != nil {
 		return fmt.Errorf("load state: %w", err)
 	}

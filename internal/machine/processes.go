@@ -150,8 +150,9 @@ func parseSizeToKB(s string) int {
 }
 
 func parseProcesses(out string) []Process {
-	var procs []Process
-	for _, line := range strings.Split(out, "\n") {
+	lines := strings.Split(out, "\n")
+	procs := make([]Process, 0, len(lines))
+	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

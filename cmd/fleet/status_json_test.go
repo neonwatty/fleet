@@ -25,14 +25,15 @@ func TestBuildStatusJSON(t *testing.T) {
 	}
 	sessions := []session.Session{
 		{
-			ID:        "a1b2c3",
-			Project:   "neonwatty/bleep",
-			Machine:   "mm1",
-			Branch:    "main",
-			Account:   "personal-max",
-			Tunnel:    session.TunnelInfo{LocalPort: 3000, RemotePort: 3000},
-			StartedAt: time.Date(2026, 4, 12, 9, 15, 0, 0, time.UTC),
-			OwnerPID:  4242,
+			ID:            "a1b2c3",
+			Project:       "neonwatty/bleep",
+			Machine:       "mm1",
+			Branch:        "main",
+			Account:       "personal-max",
+			LaunchCommand: "claude --resume",
+			Tunnel:        session.TunnelInfo{LocalPort: 3000, RemotePort: 3000},
+			StartedAt:     time.Date(2026, 4, 12, 9, 15, 0, 0, time.UTC),
+			OwnerPID:      4242,
 		},
 	}
 	labels := map[string][]session.MachineLabel{
@@ -71,6 +72,7 @@ func TestBuildStatusJSON(t *testing.T) {
 		`"status":"offline"`,
 		`"project":"neonwatty/bleep"`,
 		`"account":"personal-max"`,
+		`"launch_command":"claude --resume"`,
 		`"label":"bleep"`,
 		`"swap_warn_mb":1024`,
 		`"swap_high_mb":4096`,

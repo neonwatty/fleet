@@ -226,7 +226,60 @@ func TestLoadStateBackCompatNoLabels(t *testing.T) {
 	if loaded.Sessions[0].Account != "" {
 		t.Errorf("legacy Account = %q, want empty", loaded.Sessions[0].Account)
 	}
+	if loaded.MachineLabels == nil {
+		t.Fatalf("legacy MachineLabels should normalize to empty map")
+	}
 	if len(loaded.MachineLabels) > 0 {
-		t.Errorf("legacy MachineLabels should be nil/empty, got %v", loaded.MachineLabels)
+		t.Errorf("legacy MachineLabels should be empty, got %v", loaded.MachineLabels)
+	}
+}
+
+func TestLoadStateNormalizesEmptyFields(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+	if err := os.WriteFile(path, []byte(`{}`), 0644); err != nil {
+		t.Fatalf("write state: %v", err)
+	}
+
+	loaded, err := LoadState(path)
+	if err != nil {
+		t.Fatalf("LoadState() error: %v", err)
+	}
+	if loaded.Sessions == nil {
+		t.Fatalf("Sessions should normalize to empty slice")
+	}
+	if loaded.MachineLabels == nil {
+		t.Fatalf("MachineLabels should normalize to empty map")
+	}
+}
+
+func TestLoadStateParseErrorIncludesPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+	if err := os.WriteFile(path, []byte(`{not-json`), 0644); err != nil {
+		t.Fatalf("write bad state: %v", err)
+	}
+
+	_, err := LoadState(path)
+	if err == nil {
+		t.Fatal("LoadState() error = nil, want parse error")
+	}
+	if !strings.Contains(err.Error(), path) {
+		t.Fatalf("error = %q, want state path", err.Error())
+	}
+}
+
+func TestSaveNormalizesNilStateFields(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+	state := &State{}
+	if err := Save(path, state); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+	if state.Sessions == nil {
+		t.Fatalf("Save should normalize Sessions")
+	}
+	if state.MachineLabels == nil {
+		t.Fatalf("Save should normalize MachineLabels")
 	}
 }

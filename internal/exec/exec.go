@@ -91,6 +91,6 @@ func buildSSHArgs(m config.Machine, command string) []string {
 		"-o", "PasswordAuthentication=no",
 		"-o", "KbdInteractiveAuthentication=no",
 	)
-	args = append(args, m.Host, command)
+	args = append(args, m.SSHTarget(), command)
 	return args
 }

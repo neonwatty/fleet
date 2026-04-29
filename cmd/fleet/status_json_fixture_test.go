@@ -34,4 +34,7 @@ func TestSwiftFixtureMatchesGoSchema(t *testing.T) {
 	if len(doc.Sessions) != 2 {
 		t.Errorf("sessions len = %d, want 2", len(doc.Sessions))
 	}
+	if doc.Sessions[0].LaunchCommand != "npm run agent" {
+		t.Errorf("first session launch_command = %q, want npm run agent", doc.Sessions[0].LaunchCommand)
+	}
 }

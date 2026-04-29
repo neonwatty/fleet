@@ -95,6 +95,7 @@ struct SessionStatus: Codable {
     let machine: String
     let branch: String
     let account: String?
+    let launchCommand: String?
     let label: String?
     let tunnelLocalPort: Int
     let tunnelRemotePort: Int
@@ -102,6 +103,7 @@ struct SessionStatus: Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, project, machine, branch, account, label
+        case launchCommand = "launch_command"
         case tunnelLocalPort = "tunnel_local_port"
         case tunnelRemotePort = "tunnel_remote_port"
         case startedAt = "started_at"

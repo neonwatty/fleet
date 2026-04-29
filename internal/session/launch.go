@@ -15,17 +15,19 @@ import (
 )
 
 type LaunchOpts struct {
-	Project   string // "org/repo"
-	Branch    string
-	Account   string
-	Machine   config.Machine
-	Settings  config.Settings
-	StatePath string
+	Project       string // "org/repo", a GitHub URL, or any git clone URL
+	Branch        string
+	Account       string
+	LaunchCommand string
+	Machine       config.Machine
+	Settings      config.Settings
+	StatePath     string
 }
 
 type LaunchResult struct {
-	Session Session
-	Tunnel  *tunnel.Tunnel
+	Session       Session
+	Tunnel        *tunnel.Tunnel
+	LaunchCommand string
 }
 
 type launchDeps struct {
@@ -57,10 +59,13 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 		opts.Branch = "main"
 	}
 
-	org, repo := splitProject(opts.Project)
-	bareDir := filepath.Join(opts.Settings.BareRepoBase, org, repo+".git")
+	spec, err := parseProjectSpec(opts.Project)
+	if err != nil {
+		return nil, err
+	}
+	bareDir := filepath.Join(append([]string{opts.Settings.BareRepoBase}, append(spec.PathParts, spec.Repo+".git")...)...)
 	timestamp := deps.now().Unix()
-	worktreeDir := filepath.Join(opts.Settings.WorktreeBase, fmt.Sprintf("%s-%d", repo, timestamp))
+	worktreeDir := filepath.Join(opts.Settings.WorktreeBase, fmt.Sprintf("%s-%d", spec.Repo, timestamp))
 
 	// Expand paths for remote machine
 	remoteBare := expandRemotePath(bareDir, opts.Machine)
@@ -69,9 +74,8 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 	// Step 1: Ensure bare clone exists
 	checkCmd := fmt.Sprintf("test -d %s", shellQuotePath(remoteBare))
 	if _, err := deps.run(ctx, opts.Machine, checkCmd); err != nil {
-		cloneURL := fmt.Sprintf("https://github.com/%s.git", opts.Project)
 		mkdirCmd := fmt.Sprintf("mkdir -p %s && git clone --bare %s %s",
-			shellQuotePath(filepath.Dir(remoteBare)), shellQuote(cloneURL), shellQuotePath(remoteBare))
+			shellQuotePath(filepath.Dir(remoteBare)), shellQuote(spec.CloneURL), shellQuotePath(remoteBare))
 		if _, err := deps.run(ctx, opts.Machine, mkdirCmd); err != nil {
 			return nil, fmt.Errorf("bare clone: %w", err)
 		}
@@ -99,8 +103,9 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 		cleanupFailedLaunch(ctx, opts.Machine, remoteBare, remoteWork, worktreeCreated, tun, deps.run)
 	}()
 
-	// Step 4: Detect dev server port
-	devPort, pinnedLocal := detectRemotePorts(ctx, opts.Machine, remoteWork, deps.run)
+	// Step 4: Detect project config
+	projectConfig := detectRemoteProjectConfig(ctx, opts.Machine, remoteWork, deps.run)
+	launchCommand := resolveLaunchCommand(opts.LaunchCommand, projectConfig.LaunchCommand)
 
 	// Step 5: Set up tunnel
 	state, err := deps.loadState(opts.StatePath)
@@ -109,13 +114,13 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 	}
 	usedPorts := state.UsedPorts()
 
-	localPort, err := allocateLaunchPort(opts.Machine, opts.Settings, pinnedLocal, usedPorts)
+	localPort, err := allocateLaunchPort(opts.Machine, opts.Settings, projectConfig.TunnelLocalPort, usedPorts)
 	if err != nil {
 		return nil, fmt.Errorf("allocate port: %w", err)
 	}
 
 	if !opts.Machine.IsLocal() && localPort > 0 {
-		tun, err = deps.startTunnel(opts.Machine, localPort, devPort)
+		tun, err = deps.startTunnel(opts.Machine, localPort, projectConfig.DevPort)
 		if err != nil {
 			return nil, fmt.Errorf("tunnel: %w", err)
 		}
@@ -123,16 +128,17 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 
 	// Step 6: Record session
 	sess := Session{
-		ID:           GenerateID(),
-		Project:      opts.Project,
-		Machine:      opts.Machine.Name,
-		Branch:       opts.Branch,
-		Account:      ResolveAccount(opts.Account, opts.Machine),
-		WorktreePath: remoteWork,
-		BareRepoPath: remoteBare,
-		Tunnel:       TunnelInfo{LocalPort: localPort, RemotePort: devPort},
-		StartedAt:    deps.now().UTC(),
-		OwnerPID:     deps.pid(),
+		ID:            GenerateID(),
+		Project:       opts.Project,
+		Machine:       opts.Machine.Name,
+		Branch:        opts.Branch,
+		Account:       ResolveAccount(opts.Account, opts.Machine),
+		LaunchCommand: launchCommand,
+		WorktreePath:  remoteWork,
+		BareRepoPath:  remoteBare,
+		Tunnel:        TunnelInfo{LocalPort: localPort, RemotePort: projectConfig.DevPort},
+		StartedAt:     deps.now().UTC(),
+		OwnerPID:      deps.pid(),
 	}
 
 	if err := deps.addSession(opts.StatePath, sess); err != nil {
@@ -140,7 +146,7 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 	}
 
 	launchSucceeded = true
-	return &LaunchResult{Session: sess, Tunnel: tun}, nil
+	return &LaunchResult{Session: sess, Tunnel: tun, LaunchCommand: launchCommand}, nil
 }
 
 func allocateLaunchPort(
@@ -191,8 +197,13 @@ func cleanupFailedLaunch(
 }
 
 func ExecClaude(m config.Machine, worktreePath string) error {
+	return ExecCommand(m, worktreePath, "claude")
+}
+
+func ExecCommand(m config.Machine, worktreePath string, command string) error {
+	command = resolveLaunchCommand(command, "")
 	if m.IsLocal() {
-		cmd := exec.Command("claude")
+		cmd := exec.Command("sh", "-lc", command)
 		cmd.Dir = worktreePath
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
@@ -200,20 +211,107 @@ func ExecClaude(m config.Machine, worktreePath string) error {
 		return cmd.Run()
 	}
 
-	sshCmd := fmt.Sprintf("cd %s && claude", shellQuotePath(worktreePath))
-	cmd := exec.Command("ssh", "-t", m.Host, sshCmd)
+	sshCmd := buildRemoteExecCommand(worktreePath, command)
+	cmd := exec.Command("ssh", "-t", m.SSHTarget(), sshCmd)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func splitProject(project string) (org, repo string) {
-	parts := strings.SplitN(project, "/", 2)
-	if len(parts) == 2 {
-		return parts[0], parts[1]
+type projectSpec struct {
+	CloneURL  string
+	Repo      string
+	PathParts []string
+}
+
+func buildRemoteExecCommand(worktreePath string, command string) string {
+	return fmt.Sprintf("cd %s && %s", shellQuotePath(worktreePath), resolveLaunchCommand(command, ""))
+}
+
+func parseProjectSpec(project string) (projectSpec, error) {
+	project = strings.TrimSpace(project)
+	if project == "" {
+		return projectSpec{}, fmt.Errorf("project is required")
 	}
-	return "", parts[0]
+
+	if strings.Contains(project, "://") || strings.HasPrefix(project, "git@") || strings.HasPrefix(project, "ssh://") {
+		parts := pathPartsFromProject(project)
+		if len(parts) == 0 {
+			return projectSpec{}, fmt.Errorf("project URL must include a repository path")
+		}
+		repo := stripGitSuffix(parts[len(parts)-1])
+		if repo == "" {
+			return projectSpec{}, fmt.Errorf("project URL must include a repository name")
+		}
+		return projectSpec{
+			CloneURL:  project,
+			Repo:      repo,
+			PathParts: parts[:len(parts)-1],
+		}, nil
+	}
+
+	parts := splitCleanPath(project)
+	if len(parts) < 2 {
+		return projectSpec{}, fmt.Errorf("project must be org/repo or a git URL")
+	}
+	repo := parts[len(parts)-1]
+	return projectSpec{
+		CloneURL:  fmt.Sprintf("https://github.com/%s.git", project),
+		Repo:      stripGitSuffix(repo),
+		PathParts: parts[:len(parts)-1],
+	}, nil
+}
+
+func splitProject(project string) (org, repo string) {
+	spec, err := parseProjectSpec(project)
+	if err != nil {
+		return "", ""
+	}
+	if len(spec.PathParts) > 0 {
+		return spec.PathParts[0], spec.Repo
+	}
+	return "", spec.Repo
+}
+
+func pathPartsFromProject(project string) []string {
+	pathish := project
+	if i := strings.Index(pathish, "://"); i >= 0 {
+		pathish = pathish[i+3:]
+		if slash := strings.Index(pathish, "/"); slash >= 0 {
+			pathish = pathish[slash+1:]
+		}
+	} else if strings.HasPrefix(pathish, "git@") {
+		if colon := strings.Index(pathish, ":"); colon >= 0 {
+			pathish = pathish[colon+1:]
+		}
+	}
+	parts := splitCleanPath(pathish)
+	if len(parts) > 1 {
+		parts[len(parts)-1] = stripGitSuffix(parts[len(parts)-1])
+	}
+	return parts
+}
+
+func splitCleanPath(path string) []string {
+	raw := strings.FieldsFunc(path, func(r rune) bool {
+		return r == '/' || r == '\\'
+	})
+	parts := make([]string, 0, len(raw))
+	for _, part := range raw {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	if len(parts) == 0 {
+		return []string{"repo"}
+	}
+	return parts
+}
+
+func stripGitSuffix(repo string) string {
+	return strings.TrimSuffix(repo, ".git")
 }
 
 func expandRemotePath(path string, m config.Machine) string {
@@ -226,24 +324,34 @@ func expandRemotePath(path string, m config.Machine) string {
 	return path
 }
 
-func detectRemotePorts(
+func resolveLaunchCommand(explicit string, project string) string {
+	if strings.TrimSpace(explicit) != "" {
+		return strings.TrimSpace(explicit)
+	}
+	if strings.TrimSpace(project) != "" {
+		return strings.TrimSpace(project)
+	}
+	return "claude"
+}
+
+func detectRemoteProjectConfig(
 	ctx context.Context,
 	m config.Machine,
 	worktree string,
 	run func(context.Context, config.Machine, string) (string, error),
-) (int, int) {
+) tunnel.ProjectConfig {
 	// Try to read .fleet.toml from remote worktree
 	catCmd := fmt.Sprintf("cat %s 2>/dev/null || true", shellQuotePath(filepath.Join(worktree, ".fleet.toml")))
 	fleetToml, _ := run(ctx, m, catCmd)
 
-	if strings.Contains(fleetToml, "dev_port") {
+	if strings.TrimSpace(fleetToml) != "" {
 		tmpDir, err := os.MkdirTemp("", "fleet-detect-*")
 		if err != nil {
-			return 3000, 0
+			return tunnel.ProjectConfig{DevPort: 3000}
 		}
 		defer os.RemoveAll(tmpDir) //nolint:errcheck
 		_ = os.WriteFile(filepath.Join(tmpDir, ".fleet.toml"), []byte(fleetToml), 0644)
-		return tunnel.DetectPorts(tmpDir)
+		return tunnel.DetectProjectConfig(tmpDir)
 	}
 
 	// Try package.json
@@ -252,12 +360,12 @@ func detectRemotePorts(
 	if strings.Contains(pkgJSON, "scripts") {
 		tmpDir, err := os.MkdirTemp("", "fleet-detect-*")
 		if err != nil {
-			return 3000, 0
+			return tunnel.ProjectConfig{DevPort: 3000}
 		}
 		defer os.RemoveAll(tmpDir) //nolint:errcheck
 		_ = os.WriteFile(filepath.Join(tmpDir, "package.json"), []byte(pkgJSON), 0644)
-		return tunnel.DetectPorts(tmpDir)
+		return tunnel.DetectProjectConfig(tmpDir)
 	}
 
-	return 3000, 0
+	return tunnel.ProjectConfig{DevPort: 3000}
 }

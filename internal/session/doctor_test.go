@@ -66,6 +66,42 @@ func TestDoctorReportsMissingBaseDirs(t *testing.T) {
 	}
 }
 
+func TestDoctorFixCreatesMissingBaseDirs(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "state.json")
+	if err := Save(statePath, &State{}); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	cfg := &config.Config{
+		Settings: config.Settings{
+			WorktreeBase: filepath.Join(dir, "missing-worktrees"),
+			BareRepoBase: filepath.Join(dir, "missing-repos"),
+		},
+		Machines: []config.Machine{{Name: "local", Host: "localhost", Enabled: true}},
+	}
+
+	result, err := Doctor(context.Background(), cfg, statePath, DoctorOptions{Machine: "local", Fix: true})
+	if err != nil {
+		t.Fatalf("Doctor() error: %v", err)
+	}
+	if !result.OK() {
+		t.Fatalf("Doctor OK = false after fix, result = %+v", result)
+	}
+	if result.Fixed != 2 {
+		t.Fatalf("Fixed = %d, want 2", result.Fixed)
+	}
+	for _, path := range []string{cfg.Settings.WorktreeBase, cfg.Settings.BareRepoBase} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("stat fixed path %s: %v", path, err)
+		}
+		if !info.IsDir() {
+			t.Fatalf("fixed path %s is not a directory", path)
+		}
+	}
+}
+
 func TestDoctorUnknownMachine(t *testing.T) {
 	cfg := &config.Config{
 		Machines: []config.Machine{{Name: "local", Host: "localhost", Enabled: true}},

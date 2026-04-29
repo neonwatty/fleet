@@ -12,44 +12,113 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var version = "dev"
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
+type commandContext struct {
+	configPath string
+	statePath  string
+}
+
+func newCommandContext() *commandContext {
+	return &commandContext{
+		configPath: config.DefaultPath(),
+		statePath:  session.DefaultStatePath(),
+	}
+}
+
+func (c *commandContext) loadConfig() (*config.Config, error) {
+	cfg, err := config.Load(c.configPath)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+	return cfg, nil
+}
 
 func main() {
-	root := &cobra.Command{
-		Use:     "fleet",
-		Short:   "Distribute Claude Code instances across your local Mac fleet",
-		Version: version,
-	}
-
-	root.AddCommand(launchCmd())
-	root.AddCommand(statusCmd())
-	root.AddCommand(cleanCmd())
-	root.AddCommand(doctorCmd())
-	root.AddCommand(labelCmd())
-	root.AddCommand(accountCmd())
-
+	root := newRootCommand(newCommandContext())
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
 
-func launchCmd() *cobra.Command {
+func newRootCommand(ctx *commandContext) *cobra.Command {
+	root := &cobra.Command{
+		Use:     "fleet",
+		Short:   "Distribute Claude Code instances across your local Mac fleet",
+		Version: versionString(),
+	}
+
+	root.PersistentFlags().StringVar(&ctx.configPath, "config", ctx.configPath, "Config path")
+	root.PersistentFlags().StringVar(&ctx.statePath, "state", ctx.statePath, "State path")
+
+	root.AddCommand(launchCmd(ctx))
+	root.AddCommand(statusCmd(ctx))
+	root.AddCommand(cleanCmd(ctx))
+	root.AddCommand(doctorCmd(ctx))
+	root.AddCommand(labelCmd(ctx))
+	root.AddCommand(accountCmd(ctx))
+	root.AddCommand(initCmd(ctx))
+
+	return root
+}
+
+func versionString() string {
+	if commit == "none" && date == "unknown" {
+		return version
+	}
+	return fmt.Sprintf("%s (commit %s, built %s)", version, commit, date)
+}
+
+func initCmd(ctx *commandContext) *cobra.Command {
+	var path string
+	var force bool
+	cmd := &cobra.Command{
+		Use:   "init",
+		Short: "Create a starter fleet config",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			target := path
+			if target == "" {
+				target = ctx.configPath
+			}
+			if err := config.WriteDefault(target, force); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Wrote config to %s\n", target); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintln(cmd.OutOrStdout(), "Edit the machines list, then run: fleet doctor"); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&path, "path", "", "Config path to write (default ~/.fleet/config.toml)")
+	cmd.Flags().BoolVar(&force, "force", false, "Overwrite an existing config")
+	return cmd
+}
+
+func launchCmd(app *commandContext) *cobra.Command {
 	var branch string
 	var target string
 	var account string
 	var label string
+	var launchCommand string
 
 	cmd := &cobra.Command{
-		Use:   "launch <org/repo>",
+		Use:   "launch <org/repo|git-url>",
 		Short: "Launch Claude Code on the best available machine",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project := args[0]
 			ctx := context.Background()
 
-			cfg, err := config.Load(config.DefaultPath())
+			cfg, err := app.loadConfig()
 			if err != nil {
-				return fmt.Errorf("load config: %w", err)
+				return err
 			}
 
 			enabled := cfg.EnabledMachines()
@@ -109,12 +178,13 @@ func launchCmd() *cobra.Command {
 			fmt.Printf("Setting up %s on %s...\n", project, chosen.Name)
 
 			result, err := session.Launch(ctx, session.LaunchOpts{
-				Project:   project,
-				Branch:    branch,
-				Account:   account,
-				Machine:   chosen,
-				Settings:  cfg.Settings,
-				StatePath: session.DefaultStatePath(),
+				Project:       project,
+				Branch:        branch,
+				Account:       account,
+				LaunchCommand: launchCommand,
+				Machine:       chosen,
+				Settings:      cfg.Settings,
+				StatePath:     app.statePath,
 			})
 			if err != nil {
 				return fmt.Errorf("launch: %w", err)
@@ -122,7 +192,7 @@ func launchCmd() *cobra.Command {
 
 			if label != "" {
 				if err := session.AddLabel(
-					session.DefaultStatePath(),
+					app.statePath,
 					chosen.Name,
 					label,
 					result.Session.ID,
@@ -141,9 +211,9 @@ func launchCmd() *cobra.Command {
 
 			return session.WithSignalCleanup(
 				ctx, chosen, result.Session, result.Tunnel,
-				session.DefaultStatePath(),
+				app.statePath,
 				func() error {
-					return session.ExecClaude(chosen, result.Session.WorktreePath)
+					return session.ExecCommand(chosen, result.Session.WorktreePath, result.LaunchCommand)
 				},
 			)
 		},
@@ -153,40 +223,41 @@ func launchCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&target, "target", "t", "", "Force a specific machine")
 	cmd.Flags().StringVar(&account, "account", "", "Claude account label for this session (falls back to machine default)")
 	cmd.Flags().StringVar(&label, "name", "", "Nickname to attach to the machine (creates a linked label)")
+	cmd.Flags().StringVar(&launchCommand, "cmd", "", "Command to run inside the worktree (defaults to .fleet.toml launch_command, then claude)")
 	return cmd
 }
 
-func statusCmd() *cobra.Command {
+func statusCmd(app *commandContext) *cobra.Command {
 	var jsonOut bool
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show fleet dashboard",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(config.DefaultPath())
+			cfg, err := app.loadConfig()
 			if err != nil {
-				return fmt.Errorf("load config: %w", err)
+				return err
 			}
 			if jsonOut {
-				return runStatusJSON(cfg)
+				return runStatusJSON(cfg, app.statePath)
 			}
-			return tui.Run(cfg, session.DefaultStatePath())
+			return tui.Run(cfg, app.statePath)
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit fleet status as JSON and exit (no TUI)")
 	return cmd
 }
 
-func cleanCmd() *cobra.Command {
+func cleanCmd(app *commandContext) *cobra.Command {
 	var dryRun bool
 	cmd := &cobra.Command{
 		Use:   "clean",
 		Short: "Clean up orphaned worktrees and stale sessions",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(config.DefaultPath())
+			cfg, err := app.loadConfig()
 			if err != nil {
-				return fmt.Errorf("load config: %w", err)
+				return err
 			}
-			_, err = session.CleanWithOptions(context.Background(), cfg, session.DefaultStatePath(), session.CleanOptions{
+			_, err = session.CleanWithOptions(context.Background(), cfg, app.statePath, session.CleanOptions{
 				DryRun: dryRun,
 			})
 			return err
@@ -196,18 +267,20 @@ func cleanCmd() *cobra.Command {
 	return cmd
 }
 
-func doctorCmd() *cobra.Command {
+func doctorCmd(app *commandContext) *cobra.Command {
 	var target string
+	var fix bool
 	cmd := &cobra.Command{
 		Use:   "doctor",
-		Short: "Inspect fleet state without making changes",
+		Short: "Inspect fleet state and optionally repair setup issues",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(config.DefaultPath())
+			cfg, err := app.loadConfig()
 			if err != nil {
-				return fmt.Errorf("load config: %w", err)
+				return err
 			}
-			result, err := session.Doctor(context.Background(), cfg, session.DefaultStatePath(), session.DoctorOptions{
+			result, err := session.Doctor(context.Background(), cfg, app.statePath, session.DoctorOptions{
 				Machine: target,
+				Fix:     fix,
 			})
 			if err != nil {
 				return err
@@ -219,6 +292,7 @@ func doctorCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&target, "machine", "m", "", "Inspect a single enabled machine")
+	cmd.Flags().BoolVar(&fix, "fix", false, "Create missing configured base directories")
 	return cmd
 }
 

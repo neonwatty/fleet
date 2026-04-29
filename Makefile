@@ -1,9 +1,15 @@
-.PHONY: lint test test-coverage build fmt vet check clean install
+.PHONY: lint test test-coverage build dist fmt vet check clean install
 
 SHELL := /bin/bash
 
 BINARY := fleet
 BUILD_DIR := bin
+DIST_DIR := dist
+VERSION ?= dev
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
+DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
+DIST_NAME := $(BINARY)_$(VERSION)_darwin_arm64
 
 lint:
 	golangci-lint run ./...
@@ -16,7 +22,13 @@ test-coverage:
 	go tool cover -func=coverage.out
 
 build:
-	go build -o $(BUILD_DIR)/$(BINARY) ./cmd/fleet/
+	go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY) ./cmd/fleet/
+
+dist: build
+	mkdir -p $(DIST_DIR)/$(DIST_NAME)
+	cp $(BUILD_DIR)/$(BINARY) $(DIST_DIR)/$(DIST_NAME)/
+	cp README.md LICENSE $(DIST_DIR)/$(DIST_NAME)/ 2>/dev/null || true
+	tar -C $(DIST_DIR) -czf $(DIST_DIR)/$(DIST_NAME).tar.gz $(DIST_NAME)
 
 fmt:
 	gofmt -w .
@@ -28,7 +40,7 @@ vet:
 check: fmt lint vet test menubar-test build
 
 clean:
-	rm -rf $(BUILD_DIR)/ coverage.out
+	rm -rf $(BUILD_DIR)/ $(DIST_DIR)/ coverage.out
 
 install: build
 	cp $(BUILD_DIR)/$(BINARY) $(GOPATH)/bin/$(BINARY)

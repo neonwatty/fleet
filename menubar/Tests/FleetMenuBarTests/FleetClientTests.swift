@@ -51,6 +51,23 @@ final class FleetClientTests: XCTestCase {
         XCTAssertThrowsError(try FleetClient.decode(data))
     }
 
+    func testDecodeSessionWithoutLaunchCommandKeepsNil() throws {
+        let json = """
+        {
+          "version":"1","timestamp":"2026-04-12T14:32:10Z",
+          "thresholds":{"swap_warn_mb":1024,"swap_high_mb":4096},
+          "machines":[],
+          "sessions":[{
+            "id":"a1","project":"org/repo","machine":"mm1","branch":"main",
+            "tunnel_local_port":0,"tunnel_remote_port":3000,
+            "started_at":"2026-04-12T09:15:00Z"
+          }]
+        }
+        """
+        let snapshot = try FleetClient.decode(Data(json.utf8))
+        XCTAssertNil(snapshot.sessions[0].launchCommand)
+    }
+
     func testRunStatusTimesOut() throws {
         let dir = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("FleetClientTests.\(UUID().uuidString)")

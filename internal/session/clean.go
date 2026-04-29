@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -246,7 +247,7 @@ func killOrphanTunnels(aliveSessions []Session) {
 
 	out, err := fleetexec.RunWithTimeout(context.Background(),
 		config.Machine{Host: "localhost"},
-		"ps aux | grep 'ssh -N -L' | grep -v grep || true",
+		"ps ax -o pid=,command= | grep 'ssh' | grep -- ' -L ' | grep -v grep || true",
 		5*time.Second)
 	if err != nil {
 		return
@@ -257,17 +258,39 @@ func killOrphanTunnels(aliveSessions []Session) {
 		if line == "" {
 			continue
 		}
-		isNeeded := false
-		for port := range aliveLocalPorts {
-			if strings.Contains(line, fmt.Sprintf("%d:localhost:", port)) {
-				isNeeded = true
-				break
-			}
+		port, ok := tunnelLocalPortFromPSLine(line)
+		if !ok {
+			continue
 		}
-		if !isNeeded {
+		if !aliveLocalPorts[port] {
 			fmt.Printf("  Found orphaned tunnel process: %s\n", truncateString(line, 80))
 		}
 	}
+}
+
+func tunnelLocalPortFromPSLine(line string) (int, bool) {
+	fields := strings.Fields(line)
+	for i, field := range fields {
+		if field == "-L" && i+1 < len(fields) {
+			return tunnelLocalPortFromForwardSpec(fields[i+1])
+		}
+		if strings.HasPrefix(field, "-L") && len(field) > len("-L") {
+			return tunnelLocalPortFromForwardSpec(strings.TrimPrefix(field, "-L"))
+		}
+	}
+	return 0, false
+}
+
+func tunnelLocalPortFromForwardSpec(spec string) (int, bool) {
+	parts := strings.Split(spec, ":")
+	if len(parts) < 3 {
+		return 0, false
+	}
+	port, err := strconv.Atoi(parts[0])
+	if err != nil || port <= 0 {
+		return 0, false
+	}
+	return port, true
 }
 
 func truncateString(s string, max int) string {

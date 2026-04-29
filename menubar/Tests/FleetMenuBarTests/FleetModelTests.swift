@@ -40,6 +40,7 @@ final class FleetModelTests: XCTestCase {
         XCTAssertEqual(s.project, "neonwatty/bleep")
         XCTAssertEqual(s.machine, "mm1")
         XCTAssertEqual(s.account, "personal-max")
+        XCTAssertEqual(s.launchCommand, "npm run agent")
         XCTAssertEqual(s.tunnelLocalPort, 3000)
     }
 }

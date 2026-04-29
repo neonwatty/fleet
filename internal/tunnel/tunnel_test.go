@@ -2,7 +2,10 @@ package tunnel
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
+
+	"github.com/neonwatty/fleet/internal/config"
 )
 
 func TestAllocatePort(t *testing.T) {
@@ -55,5 +58,16 @@ func TestStopKillsAndWaitsForProcess(t *testing.T) {
 	}
 	if cmd.ProcessState == nil {
 		t.Fatal("Stop() should wait for process and populate ProcessState")
+	}
+}
+
+func TestBuildSSHForwardArgsUsesConfiguredUser(t *testing.T) {
+	args := buildSSHForwardArgs(config.Machine{Host: "mm1", User: "neonwatty"}, "4000:localhost:3000")
+	joined := strings.Join(args, " ")
+	if !strings.Contains(joined, "4000:localhost:3000") {
+		t.Fatalf("args missing forward spec: %v", args)
+	}
+	if !strings.Contains(joined, "neonwatty@mm1") {
+		t.Fatalf("args missing user@host: %v", args)
 	}
 }
