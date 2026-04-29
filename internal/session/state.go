@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 type State struct {
@@ -47,6 +49,10 @@ func DefaultStatePath() string {
 }
 
 func LoadState(path string) (*State, error) {
+	return loadStateUnlocked(path)
+}
+
+func loadStateUnlocked(path string) (*State, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -78,6 +84,12 @@ func (s *State) Normalize() {
 }
 
 func Save(path string, s *State) error {
+	return withStateFileLock(path, func() error {
+		return saveStateUnlocked(path, s)
+	})
+}
+
+func saveStateUnlocked(path string, s *State) error {
 	s.Normalize()
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -118,29 +130,58 @@ func Save(path string, s *State) error {
 	return nil
 }
 
-func AddSession(path string, sess Session) error {
-	s, err := LoadState(path)
-	if err != nil {
-		return err
+func WithStateLock(path string, fn func(*State) error) error {
+	return withStateFileLock(path, func() error {
+		state, err := loadStateUnlocked(path)
+		if err != nil {
+			return err
+		}
+		if err := fn(state); err != nil {
+			return err
+		}
+		return saveStateUnlocked(path, state)
+	})
+}
+
+func withStateFileLock(path string, fn func() error) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create state dir: %w", err)
 	}
-	s.Sessions = append(s.Sessions, sess)
-	return Save(path, s)
+
+	lockPath := filepath.Join(dir, ".state.lock")
+	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return fmt.Errorf("open state lock: %w", err)
+	}
+	defer lockFile.Close() //nolint:errcheck
+
+	if err := unix.Flock(int(lockFile.Fd()), unix.LOCK_EX); err != nil {
+		return fmt.Errorf("lock state: %w", err)
+	}
+	defer unix.Flock(int(lockFile.Fd()), unix.LOCK_UN) //nolint:errcheck
+
+	return fn()
+}
+
+func AddSession(path string, sess Session) error {
+	return WithStateLock(path, func(s *State) error {
+		s.Sessions = append(s.Sessions, sess)
+		return nil
+	})
 }
 
 func RemoveSession(path string, id string) error {
-	s, err := LoadState(path)
-	if err != nil {
-		return err
-	}
-
-	filtered := make([]Session, 0, len(s.Sessions))
-	for _, sess := range s.Sessions {
-		if sess.ID != id {
-			filtered = append(filtered, sess)
+	return WithStateLock(path, func(s *State) error {
+		filtered := make([]Session, 0, len(s.Sessions))
+		for _, sess := range s.Sessions {
+			if sess.ID != id {
+				filtered = append(filtered, sess)
+			}
 		}
-	}
-	s.Sessions = filtered
-	return Save(path, s)
+		s.Sessions = filtered
+		return nil
+	})
 }
 
 func (s *State) UsedPorts() map[int]bool {

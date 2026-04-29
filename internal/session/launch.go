@@ -29,22 +29,24 @@ type LaunchResult struct {
 }
 
 type launchDeps struct {
-	run         func(context.Context, config.Machine, string) (string, error)
-	loadState   func(string) (*State, error)
-	addSession  func(string, Session) error
-	startTunnel func(config.Machine, int, int) (*tunnel.Tunnel, error)
-	now         func() time.Time
-	pid         func() int
+	run           func(context.Context, config.Machine, string) (string, error)
+	loadState     func(string) (*State, error)
+	addSession    func(string, Session) error
+	withStateLock func(string, func(*State) error) error
+	startTunnel   func(config.Machine, int, int) (*tunnel.Tunnel, error)
+	now           func() time.Time
+	pid           func() int
 }
 
 func defaultLaunchDeps() launchDeps {
 	return launchDeps{
-		run:         fleetexec.Run,
-		loadState:   LoadState,
-		addSession:  AddSession,
-		startTunnel: tunnel.Start,
-		now:         time.Now,
-		pid:         os.Getpid,
+		run:           fleetexec.Run,
+		loadState:     LoadState,
+		addSession:    AddSession,
+		withStateLock: WithStateLock,
+		startTunnel:   tunnel.Start,
+		now:           time.Now,
+		pid:           os.Getpid,
 	}
 }
 
@@ -105,26 +107,26 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 	projectConfig := detectRemoteProjectConfig(ctx, opts.Machine, remoteWork, deps.run)
 	launchCommand := resolveLaunchCommand(opts.LaunchCommand, projectConfig.LaunchCommand)
 
-	// Step 5: Set up tunnel
-	state, err := deps.loadState(opts.StatePath)
+	// Step 5: Reserve state and set up tunnel under the state lock so two
+	// launches cannot allocate the same local port from stale state.
+	sess, tun, err := reserveLaunchSession(opts, deps, launchCommand, remoteBare, remoteWork, projectConfig)
 	if err != nil {
-		return nil, fmt.Errorf("load state: %w", err)
-	}
-	usedPorts := state.UsedPorts()
-
-	localPort, err := allocateLaunchPort(opts.Machine, opts.Settings, projectConfig.TunnelLocalPort, usedPorts)
-	if err != nil {
-		return nil, fmt.Errorf("allocate port: %w", err)
+		return nil, err
 	}
 
-	if !opts.Machine.IsLocal() && localPort > 0 {
-		tun, err = deps.startTunnel(opts.Machine, localPort, projectConfig.DevPort)
-		if err != nil {
-			return nil, fmt.Errorf("tunnel: %w", err)
-		}
-	}
+	launchSucceeded = true
+	return &LaunchResult{Session: sess, Tunnel: tun, LaunchCommand: launchCommand}, nil
+}
 
-	// Step 6: Record session
+func reserveLaunchSession(
+	opts LaunchOpts,
+	deps launchDeps,
+	launchCommand string,
+	remoteBare string,
+	remoteWork string,
+	projectConfig tunnel.ProjectConfig,
+) (Session, *tunnel.Tunnel, error) {
+	var tun *tunnel.Tunnel
 	sess := Session{
 		ID:            GenerateID(),
 		Project:       opts.Project,
@@ -134,17 +136,72 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 		LaunchCommand: launchCommand,
 		WorktreePath:  remoteWork,
 		BareRepoPath:  remoteBare,
-		Tunnel:        TunnelInfo{LocalPort: localPort, RemotePort: projectConfig.DevPort},
 		StartedAt:     deps.now().UTC(),
 		OwnerPID:      deps.pid(),
 	}
 
-	if err := deps.addSession(opts.StatePath, sess); err != nil {
-		return nil, fmt.Errorf("save session: %w", err)
+	if deps.withStateLock != nil {
+		if err := deps.withStateLock(opts.StatePath, func(state *State) error {
+			localPort, err := allocateLaunchPort(opts.Machine, opts.Settings, projectConfig.TunnelLocalPort, state.UsedPorts())
+			if err != nil {
+				return fmt.Errorf("allocate port: %w", err)
+			}
+			sess.Tunnel = TunnelInfo{LocalPort: localPort, RemotePort: projectConfig.DevPort}
+			if !opts.Machine.IsLocal() && localPort > 0 {
+				tun, err = deps.startTunnel(opts.Machine, localPort, projectConfig.DevPort)
+				if err != nil {
+					return fmt.Errorf("tunnel: %w", err)
+				}
+			}
+			state.Sessions = append(state.Sessions, sess)
+			return nil
+		}); err != nil {
+			return Session{}, nil, fmt.Errorf("save session: %w", err)
+		}
+		return sess, tun, nil
 	}
 
-	launchSucceeded = true
-	return &LaunchResult{Session: sess, Tunnel: tun, LaunchCommand: launchCommand}, nil
+	tun, err := reserveLaunchSessionUnlocked(opts, deps, &sess, projectConfig)
+	if err != nil {
+		return Session{}, nil, err
+	}
+	return sess, tun, nil
+}
+
+func reserveLaunchSessionUnlocked(
+	opts LaunchOpts,
+	deps launchDeps,
+	sess *Session,
+	projectConfig tunnel.ProjectConfig,
+) (*tunnel.Tunnel, error) {
+	state, err := deps.loadState(opts.StatePath)
+	if err != nil {
+		return nil, fmt.Errorf("load state: %w", err)
+	}
+	localPort, err := allocateLaunchPort(opts.Machine, opts.Settings, projectConfig.TunnelLocalPort, state.UsedPorts())
+	if err != nil {
+		return nil, fmt.Errorf("allocate port: %w", err)
+	}
+	sess.Tunnel = TunnelInfo{LocalPort: localPort, RemotePort: projectConfig.DevPort}
+	tun, err := startLaunchTunnel(opts.Machine, localPort, projectConfig.DevPort, deps)
+	if err != nil {
+		return nil, err
+	}
+	if err := deps.addSession(opts.StatePath, *sess); err != nil {
+		return nil, fmt.Errorf("save session: %w", err)
+	}
+	return tun, nil
+}
+
+func startLaunchTunnel(m config.Machine, localPort, devPort int, deps launchDeps) (*tunnel.Tunnel, error) {
+	if m.IsLocal() || localPort == 0 {
+		return nil, nil
+	}
+	tun, err := deps.startTunnel(m, localPort, devPort)
+	if err != nil {
+		return nil, fmt.Errorf("tunnel: %w", err)
+	}
+	return tun, nil
 }
 
 func allocateLaunchPort(

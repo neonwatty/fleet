@@ -12,70 +12,63 @@ func AddLabel(statePath, machineName, labelName, sessionID string, lastSeenPID i
 	if labelName == "" {
 		return fmt.Errorf("label name is required")
 	}
-	s, err := LoadState(statePath)
-	if err != nil {
-		return err
-	}
-	if s.MachineLabels == nil {
-		s.MachineLabels = make(map[string][]MachineLabel)
-	}
-
-	label := MachineLabel{
-		Name:        labelName,
-		SessionID:   sessionID,
-		CreatedAt:   time.Now().UTC(),
-		LastSeenPID: lastSeenPID,
-	}
-
-	existing := s.MachineLabels[machineName]
-	replaced := false
-	for i := range existing {
-		if existing[i].Name == labelName {
-			existing[i] = label
-			replaced = true
-			break
+	return WithStateLock(statePath, func(s *State) error {
+		if s.MachineLabels == nil {
+			s.MachineLabels = make(map[string][]MachineLabel)
 		}
-	}
-	if !replaced {
-		existing = append(existing, label)
-	}
-	s.MachineLabels[machineName] = existing
 
-	return Save(statePath, s)
+		label := MachineLabel{
+			Name:        labelName,
+			SessionID:   sessionID,
+			CreatedAt:   time.Now().UTC(),
+			LastSeenPID: lastSeenPID,
+		}
+
+		existing := s.MachineLabels[machineName]
+		replaced := false
+		for i := range existing {
+			if existing[i].Name == labelName {
+				existing[i] = label
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			existing = append(existing, label)
+		}
+		s.MachineLabels[machineName] = existing
+		return nil
+	})
 }
 
 // RemoveLabel removes a single label by name from a machine. No error if the
 // label does not exist (idempotent).
 func RemoveLabel(statePath, machineName, labelName string) error {
-	s, err := LoadState(statePath)
-	if err != nil {
-		return err
-	}
-	if s.MachineLabels == nil {
-		return nil
-	}
-	existing := s.MachineLabels[machineName]
-	filtered := existing[:0]
-	for _, l := range existing {
-		if l.Name != labelName {
-			filtered = append(filtered, l)
+	return WithStateLock(statePath, func(s *State) error {
+		if s.MachineLabels == nil {
+			return nil
 		}
-	}
-	s.MachineLabels[machineName] = filtered
-	return Save(statePath, s)
+		existing := s.MachineLabels[machineName]
+		filtered := existing[:0]
+		for _, l := range existing {
+			if l.Name != labelName {
+				filtered = append(filtered, l)
+			}
+		}
+		s.MachineLabels[machineName] = filtered
+		return nil
+	})
 }
 
 // ClearLabels removes all labels from a machine.
 func ClearLabels(statePath, machineName string) error {
-	s, err := LoadState(statePath)
-	if err != nil {
-		return err
-	}
-	if s.MachineLabels == nil {
+	return WithStateLock(statePath, func(s *State) error {
+		if s.MachineLabels == nil {
+			return nil
+		}
+		delete(s.MachineLabels, machineName)
 		return nil
-	}
-	delete(s.MachineLabels, machineName)
-	return Save(statePath, s)
+	})
 }
 
 // IsLabelLive returns true when a label should be considered live on its

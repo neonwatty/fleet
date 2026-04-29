@@ -1,4 +1,4 @@
-.PHONY: lint test test-coverage build dist fmt vet check clean install
+.PHONY: lint test test-coverage build dist release-cli release-menubar release-local fmt vet check clean install
 
 SHELL := /bin/bash
 
@@ -29,6 +29,24 @@ dist: build
 	cp $(BUILD_DIR)/$(BINARY) $(DIST_DIR)/$(DIST_NAME)/
 	cp README.md LICENSE $(DIST_DIR)/$(DIST_NAME)/ 2>/dev/null || true
 	tar -C $(DIST_DIR) -czf $(DIST_DIR)/$(DIST_NAME).tar.gz $(DIST_NAME)
+
+release-cli:
+	$(MAKE) clean
+	$(MAKE) VERSION=$(VERSION) build
+	mkdir -p $(DIST_DIR)/$(DIST_NAME)
+	cp $(BUILD_DIR)/$(BINARY) $(DIST_DIR)/$(DIST_NAME)/
+	cp README.md LICENSE config.example.toml $(DIST_DIR)/$(DIST_NAME)/ 2>/dev/null || true
+	mkdir -p $(DIST_DIR)/$(DIST_NAME)/scripts
+	cp scripts/install.sh scripts/uninstall.sh $(DIST_DIR)/$(DIST_NAME)/scripts/
+	tar -C $(DIST_DIR) -czf $(DIST_DIR)/$(DIST_NAME).tar.gz $(DIST_NAME)
+	shasum -a 256 $(DIST_DIR)/$(DIST_NAME).tar.gz > $(DIST_DIR)/$(DIST_NAME).tar.gz.sha256
+
+release-menubar: menubar-build
+	mkdir -p $(DIST_DIR)
+	cd menubar/build/Build/Products/Release && zip -qry ../../../../../$(DIST_DIR)/FleetMenuBar_$(VERSION)_darwin_arm64.zip FleetMenuBar.app
+	shasum -a 256 $(DIST_DIR)/FleetMenuBar_$(VERSION)_darwin_arm64.zip > $(DIST_DIR)/FleetMenuBar_$(VERSION)_darwin_arm64.zip.sha256
+
+release-local: release-cli release-menubar
 
 fmt:
 	gofmt -w .
