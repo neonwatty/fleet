@@ -31,6 +31,30 @@ final class FleetClientTests: XCTestCase {
         XCTAssertEqual(resolved, "/opt/homebrew/bin/fleet")
     }
 
+    func testResolveConfigAndStatePathsTrimWhitespace() {
+        let defaults = UserDefaults(suiteName: "FleetMenuBarTests.\(UUID())")!
+        defaults.set(" /tmp/fleet.toml ", forKey: "fleetConfigPath")
+        defaults.set("\n/tmp/state.json\t", forKey: "fleetStatePath")
+
+        XCTAssertEqual(FleetClient.resolveConfigPath(defaults: defaults), "/tmp/fleet.toml")
+        XCTAssertEqual(FleetClient.resolveStatePath(defaults: defaults), "/tmp/state.json")
+    }
+
+    func testStatusArgumentsIncludeConfigAndStateBeforeCommand() {
+        let args = FleetClient.statusArguments(
+            configPath: "/tmp/fleet config.toml",
+            statePath: "/tmp/state.json"
+        )
+        XCTAssertEqual(
+            args,
+            ["--config", "/tmp/fleet config.toml", "--state", "/tmp/state.json", "status", "--json"]
+        )
+    }
+
+    func testStatusArgumentsOmitBlankOverrides() {
+        XCTAssertEqual(FleetClient.statusArguments(configPath: " ", statePath: ""), ["status", "--json"])
+    }
+
     func testDecodeSnapshotFromBytesPublishesOnMain() throws {
         let json = """
         {
@@ -83,6 +107,42 @@ final class FleetClientTests: XCTestCase {
             XCTFail("runStatus should time out")
         case .failure(let err):
             XCTAssertTrue(err.contains("timed out"), "error = \(err)")
+        }
+    }
+
+    func testRunStatusPassesConfigAndStateArguments() throws {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("FleetClientTests.\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let argsFile = dir.appendingPathComponent("args.txt")
+        let script = dir.appendingPathComponent("fleet")
+        let body = """
+        #!/bin/sh
+        printf '%s\\n' "$@" > "\(argsFile.path)"
+        cat <<'JSON'
+        {"version":"1","timestamp":"2026-04-12T14:32:10Z","thresholds":{"swap_warn_mb":1024,"swap_high_mb":4096},"machines":[],"sessions":[]}
+        JSON
+        """
+        try body.write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+
+        switch FleetClient.runStatus(
+            binaryPath: script.path,
+            configPath: "/tmp/fleet config.toml",
+            statePath: "/tmp/state.json"
+        ) {
+        case .success:
+            let args = try String(contentsOf: argsFile, encoding: .utf8)
+                .split(separator: "\n")
+                .map(String.init)
+            XCTAssertEqual(
+                args,
+                ["--config", "/tmp/fleet config.toml", "--state", "/tmp/state.json", "status", "--json"]
+            )
+        case .failure(let err):
+            XCTFail("runStatus failed: \(err)")
         }
     }
 

@@ -7,6 +7,8 @@ final class FleetClient: ObservableObject {
     @Published private(set) var lastError: String?
 
     private let binaryPath: String
+    private let configPath: String
+    private let statePath: String
     private let refreshInterval: TimeInterval
     private var timer: Timer?
     private var refreshInFlight = false
@@ -15,8 +17,15 @@ final class FleetClient: ObservableObject {
     /// Read-only view of the in-flight flag, for tests.
     var isRefreshing: Bool { refreshInFlight }
 
-    init(binaryPath: String, refreshInterval: TimeInterval = 10) {
+    init(
+        binaryPath: String,
+        configPath: String = "",
+        statePath: String = "",
+        refreshInterval: TimeInterval = 10
+    ) {
         self.binaryPath = binaryPath
+        self.configPath = configPath
+        self.statePath = statePath
         self.refreshInterval = refreshInterval
     }
 
@@ -39,8 +48,10 @@ final class FleetClient: ObservableObject {
         guard !refreshInFlight else { return }
         refreshInFlight = true
         let path = binaryPath
+        let config = configPath
+        let state = statePath
         queue.async { [weak self] in
-            let result = Self.runStatus(binaryPath: path)
+            let result = Self.runStatus(binaryPath: path, configPath: config, statePath: state)
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.refreshInFlight = false
@@ -67,6 +78,28 @@ final class FleetClient: ObservableObject {
         return "/opt/homebrew/bin/fleet"
     }
 
+    nonisolated static func resolveConfigPath(defaults: UserDefaults) -> String {
+        defaults.string(forKey: "fleetConfigPath")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    nonisolated static func resolveStatePath(defaults: UserDefaults) -> String {
+        defaults.string(forKey: "fleetStatePath")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    nonisolated static func statusArguments(configPath: String = "", statePath: String = "") -> [String] {
+        var args: [String] = []
+        let config = configPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        let state = statePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !config.isEmpty {
+            args.append(contentsOf: ["--config", config])
+        }
+        if !state.isEmpty {
+            args.append(contentsOf: ["--state", state])
+        }
+        args.append(contentsOf: ["status", "--json"])
+        return args
+    }
+
     nonisolated static func decode(_ data: Data) throws -> FleetSnapshot {
         return try JSONDecoder().decode(FleetSnapshot.self, from: data)
     }
@@ -76,10 +109,15 @@ final class FleetClient: ObservableObject {
         case failure(String)
     }
 
-    nonisolated static func runStatus(binaryPath: String, timeout: TimeInterval = 20) -> RunResult {
+    nonisolated static func runStatus(
+        binaryPath: String,
+        configPath: String = "",
+        statePath: String = "",
+        timeout: TimeInterval = 20
+    ) -> RunResult {
         let process = Process()
         process.launchPath = binaryPath
-        process.arguments = ["status", "--json"]
+        process.arguments = statusArguments(configPath: configPath, statePath: statePath)
 
         let stdout = Pipe()
         let stderr = Pipe()

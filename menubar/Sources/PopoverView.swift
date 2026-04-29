@@ -153,12 +153,34 @@ struct PopoverView: View {
 
     /// Returns the command used to open the full dashboard in Terminal.
     /// Separated so tests can assert the exact invocation without spawning a process.
-    static func openFullDashboardCommand() -> (path: String, args: [String]) {
-        (
+    static func openFullDashboardCommand(
+        defaults: UserDefaults = .standard,
+        env: [String: String] = ProcessInfo.processInfo.environment
+    ) -> (path: String, args: [String]) {
+        let binary = FleetClient.resolveBinaryPath(defaults: defaults, env: env)
+        let statusArgs = Array(FleetClient.statusArguments(
+            configPath: FleetClient.resolveConfigPath(defaults: defaults),
+            statePath: FleetClient.resolveStatePath(defaults: defaults)
+        ).dropLast())
+        let command = ([binary] + statusArgs).map(shellQuote).joined(separator: " ")
+        return (
             "/usr/bin/osascript",
-            ["-e", "tell application \"Terminal\" to do script \"fleet status\"",
+            ["-e", "tell application \"Terminal\" to do script \(appleScriptString(command))",
              "-e", "tell application \"Terminal\" to activate"]
         )
+    }
+
+    private static func shellQuote(_ value: String) -> String {
+        if value.rangeOfCharacter(from: CharacterSet(charactersIn: " \t\n'\"\\$;&|()<>*?[]{}!")) == nil {
+            return value
+        }
+        return "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    private static func appleScriptString(_ value: String) -> String {
+        "\"" + value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 
     // MARK: - Pure helpers (testable)

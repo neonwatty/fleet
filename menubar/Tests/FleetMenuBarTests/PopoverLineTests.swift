@@ -75,13 +75,30 @@ final class PopoverLineTests: XCTestCase {
         XCTAssertEqual(path, "/usr/bin/osascript")
         XCTAssertTrue(args.contains("-e"))
         XCTAssertTrue(
-            args.contains(where: { $0.contains("do script \"fleet status\"") }),
+            args.contains(where: { $0.contains("do script \"/opt/homebrew/bin/fleet status\"") }),
             "args should tell Terminal to run fleet status, got: \(args)"
         )
         XCTAssertTrue(
             args.contains(where: { $0.contains("activate") }),
             "args should activate Terminal to bring it to front, got: \(args)"
         )
+    }
+
+    func testOpenFullDashboardCommandUsesConfiguredPaths() {
+        let defaults = UserDefaults(suiteName: "FleetMenuBarTests.\(UUID())")!
+        defaults.set("/tmp/fleet bin/fleet", forKey: "fleetBinPath")
+        defaults.set("/tmp/fleet config.toml", forKey: "fleetConfigPath")
+        defaults.set("/tmp/state.json", forKey: "fleetStatePath")
+
+        let (path, args) = PopoverView.openFullDashboardCommand(defaults: defaults, env: [:])
+        XCTAssertEqual(path, "/usr/bin/osascript")
+        XCTAssertTrue(
+            args.contains(where: {
+                $0.contains("'/tmp/fleet bin/fleet' --config '/tmp/fleet config.toml' --state /tmp/state.json status")
+            }),
+            "args should include configured binary/config/state paths, got: \(args)"
+        )
+        XCTAssertFalse(args.contains(where: { $0.contains("--json") }))
     }
 }
 
