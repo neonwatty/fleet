@@ -163,11 +163,10 @@ func runStatusJSON(cfg *config.Config) error {
 	}
 
 	ccPIDs := make(map[string][]int)
-	for _, m := range enabled {
-		groups := machine.ProbeProcesses(ctx, m)
+	for name, groups := range machine.ProbeProcessesAll(ctx, enabled) {
 		for _, g := range groups {
 			if g.Name == "Claude Code" {
-				ccPIDs[m.Name] = append(ccPIDs[m.Name], g.PIDs...)
+				ccPIDs[name] = append(ccPIDs[name], g.PIDs...)
 			}
 		}
 	}

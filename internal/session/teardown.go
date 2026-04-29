@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/neonwatty/fleet/internal/config"
 	fleetexec "github.com/neonwatty/fleet/internal/exec"
@@ -21,10 +22,10 @@ func Teardown(ctx context.Context, m config.Machine, sess Session, tun *tunnel.T
 	// 2. Remove remote worktree
 	if sess.WorktreePath != "" {
 		rmCmd := fmt.Sprintf("rm -rf -- %s", shellQuotePath(sess.WorktreePath))
-		_, _ = fleetexec.Run(ctx, m, rmCmd)
+		_, _ = fleetexec.RunWithTimeout(ctx, m, rmCmd, 10*time.Second)
 
 		pruneCmd := fmt.Sprintf("git -C %s worktree prune", shellQuotePath(bareRepoPathForSession(sess)))
-		_, _ = fleetexec.Run(ctx, m, pruneCmd)
+		_, _ = fleetexec.RunWithTimeout(ctx, m, pruneCmd, 10*time.Second)
 	}
 
 	// 3. Remove session from state

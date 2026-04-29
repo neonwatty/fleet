@@ -1,0 +1,87 @@
+package session
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/neonwatty/fleet/internal/config"
+)
+
+func TestDoctorOKForLocalMachineWithExistingBaseDirs(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "state.json")
+	if err := Save(statePath, &State{}); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	cfg := &config.Config{
+		Settings: config.Settings{
+			WorktreeBase: filepath.Join(dir, "worktrees"),
+			BareRepoBase: filepath.Join(dir, "repos"),
+		},
+		Machines: []config.Machine{{Name: "local", Host: "localhost", Enabled: true}},
+	}
+	if err := mkdirAll(cfg.Settings.WorktreeBase, cfg.Settings.BareRepoBase); err != nil {
+		t.Fatalf("mkdir test dirs: %v", err)
+	}
+
+	result, err := Doctor(context.Background(), cfg, statePath, DoctorOptions{})
+	if err != nil {
+		t.Fatalf("Doctor() error: %v", err)
+	}
+	if !result.OK() {
+		t.Fatalf("Doctor OK = false, result = %+v", result)
+	}
+	if result.CheckedMachines != 1 {
+		t.Fatalf("CheckedMachines = %d, want 1", result.CheckedMachines)
+	}
+}
+
+func TestDoctorReportsMissingBaseDirs(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "state.json")
+	if err := Save(statePath, &State{}); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	cfg := &config.Config{
+		Settings: config.Settings{
+			WorktreeBase: filepath.Join(dir, "missing-worktrees"),
+			BareRepoBase: filepath.Join(dir, "missing-repos"),
+		},
+		Machines: []config.Machine{{Name: "local", Host: "localhost", Enabled: true}},
+	}
+
+	result, err := Doctor(context.Background(), cfg, statePath, DoctorOptions{Machine: "local"})
+	if err != nil {
+		t.Fatalf("Doctor() error: %v", err)
+	}
+	if result.OK() {
+		t.Fatalf("Doctor OK = true, want missing dirs issue")
+	}
+	if len(result.Issues) != 2 {
+		t.Fatalf("Issues = %v, want 2 missing dir issues", result.Issues)
+	}
+}
+
+func TestDoctorUnknownMachine(t *testing.T) {
+	cfg := &config.Config{
+		Machines: []config.Machine{{Name: "local", Host: "localhost", Enabled: true}},
+	}
+
+	_, err := Doctor(context.Background(), cfg, filepath.Join(t.TempDir(), "state.json"), DoctorOptions{Machine: "mm1"})
+	if err == nil {
+		t.Fatal("Doctor() error = nil, want unknown machine error")
+	}
+}
+
+func mkdirAll(paths ...string) error {
+	for _, path := range paths {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			return err
+		}
+	}
+	return nil
+}

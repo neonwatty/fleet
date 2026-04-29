@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/neonwatty/fleet/internal/config"
 	fleetexec "github.com/neonwatty/fleet/internal/exec"
@@ -131,14 +132,14 @@ func remotePathExists(ctx context.Context, m config.Machine, path string) bool {
 		return false
 	}
 	checkDir := fmt.Sprintf("test -d %s", shellQuotePath(path))
-	_, err := fleetexec.Run(ctx, m, checkDir)
+	_, err := fleetexec.RunWithTimeout(ctx, m, checkDir, 5*time.Second)
 	return err == nil
 }
 
 func remoteClaudeOwnsWorktree(ctx context.Context, m config.Machine, worktreePath string) bool {
 	checkProc := fmt.Sprintf("ps aux | grep '[c]laude' | grep -q -- %s",
 		shellQuote(filepath.Base(worktreePath)))
-	_, err := fleetexec.Run(ctx, m, checkProc)
+	_, err := fleetexec.RunWithTimeout(ctx, m, checkProc, 5*time.Second)
 	return err == nil
 }
 
@@ -152,10 +153,10 @@ func cleanOrphan(ctx context.Context, machines []config.Machine, sess Session) {
 
 	fmt.Printf("  Cleaning orphan: %s on %s (%s)\n", sess.Project, sess.Machine, sess.WorktreePath)
 	rmCmd := fmt.Sprintf("rm -rf -- %s", shellQuotePath(sess.WorktreePath))
-	_, _ = fleetexec.Run(ctx, m, rmCmd)
+	_, _ = fleetexec.RunWithTimeout(ctx, m, rmCmd, 10*time.Second)
 
 	pruneCmd := fmt.Sprintf("git -C %s worktree prune 2>/dev/null || true", shellQuotePath(bareRepoPathForSession(sess)))
-	_, _ = fleetexec.Run(ctx, m, pruneCmd)
+	_, _ = fleetexec.RunWithTimeout(ctx, m, pruneCmd, 10*time.Second)
 }
 
 func findSessionMachine(machines []config.Machine, name string) (config.Machine, bool) {
@@ -243,9 +244,10 @@ func killOrphanTunnels(aliveSessions []Session) {
 		}
 	}
 
-	out, err := fleetexec.Run(context.Background(),
+	out, err := fleetexec.RunWithTimeout(context.Background(),
 		config.Machine{Host: "localhost"},
-		"ps aux | grep 'ssh -N -L' | grep -v grep || true")
+		"ps aux | grep 'ssh -N -L' | grep -v grep || true",
+		5*time.Second)
 	if err != nil {
 		return
 	}

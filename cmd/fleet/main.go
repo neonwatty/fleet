@@ -197,7 +197,8 @@ func cleanCmd() *cobra.Command {
 }
 
 func doctorCmd() *cobra.Command {
-	return &cobra.Command{
+	var target string
+	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Inspect fleet state without making changes",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -205,12 +206,20 @@ func doctorCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
-			_, err = session.CleanWithOptions(context.Background(), cfg, session.DefaultStatePath(), session.CleanOptions{
-				DryRun: true,
+			result, err := session.Doctor(context.Background(), cfg, session.DefaultStatePath(), session.DoctorOptions{
+				Machine: target,
 			})
-			return err
+			if err != nil {
+				return err
+			}
+			if !result.OK() {
+				return fmt.Errorf("doctor found issues")
+			}
+			return nil
 		},
 	}
+	cmd.Flags().StringVarP(&target, "machine", "m", "", "Inspect a single enabled machine")
+	return cmd
 }
 
 func findMachine(machines []config.Machine, name string) config.Machine {

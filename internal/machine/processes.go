@@ -37,7 +37,7 @@ func ProbeProcesses(ctx context.Context, m config.Machine) []ProcessGroup {
 	defer cancel()
 
 	cmd := "ps -eo rss,pid,command -m | head -51 | tail -50"
-	out, err := fleetexec.Run(probeCtx, m, cmd)
+	out, err := fleetexec.RunWithTimeout(probeCtx, m, cmd, 10*time.Second)
 	if err != nil {
 		return nil
 	}
