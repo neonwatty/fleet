@@ -46,27 +46,6 @@ func ProbeProcesses(ctx context.Context, m config.Machine) []ProcessGroup {
 	return ClassifyProcesses(procs)
 }
 
-func ProbeProcessesAll(ctx context.Context, machines []config.Machine) map[string][]ProcessGroup {
-	type result struct {
-		name   string
-		groups []ProcessGroup
-	}
-
-	ch := make(chan result, len(machines))
-	for _, m := range machines {
-		go func(m config.Machine) {
-			ch <- result{name: m.Name, groups: ProbeProcesses(ctx, m)}
-		}(m)
-	}
-
-	out := make(map[string][]ProcessGroup, len(machines))
-	for range machines {
-		r := <-ch
-		out[r.name] = r.groups
-	}
-	return out
-}
-
 func KillGroup(ctx context.Context, m config.Machine, group ProcessGroup) error {
 	return KillGroupWith(ctx, m, group, fleetexec.Run)
 }
