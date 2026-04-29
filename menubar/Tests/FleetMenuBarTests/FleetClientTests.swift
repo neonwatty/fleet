@@ -51,6 +51,24 @@ final class FleetClientTests: XCTestCase {
         XCTAssertThrowsError(try FleetClient.decode(data))
     }
 
+    func testRunStatusTimesOut() throws {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("FleetClientTests.\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let script = dir.appendingPathComponent("fleet")
+        try "#!/bin/sh\nsleep 2\n".write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+
+        switch FleetClient.runStatus(binaryPath: script.path, timeout: 0.1) {
+        case .success:
+            XCTFail("runStatus should time out")
+        case .failure(let err):
+            XCTAssertTrue(err.contains("timed out"), "error = \(err)")
+        }
+    }
+
     @MainActor
     func testRefreshDropsOverlappingCalls() {
         // Use a path that's guaranteed missing so `Process.run()` throws fast.

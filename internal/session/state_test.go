@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const testSessionID = "abc123"
+
 func TestStateRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
@@ -15,7 +17,7 @@ func TestStateRoundTrip(t *testing.T) {
 	s := &State{
 		Sessions: []Session{
 			{
-				ID:           "abc123",
+				ID:           testSessionID,
 				Project:      "neonwatty/seatify",
 				Machine:      "mm2",
 				Branch:       "main",
@@ -39,11 +41,36 @@ func TestStateRoundTrip(t *testing.T) {
 	if len(loaded.Sessions) != 1 {
 		t.Fatalf("len(Sessions) = %d, want 1", len(loaded.Sessions))
 	}
-	if loaded.Sessions[0].ID != "abc123" {
-		t.Errorf("ID = %q, want %q", loaded.Sessions[0].ID, "abc123")
+	if loaded.Sessions[0].ID != testSessionID {
+		t.Errorf("ID = %q, want %q", loaded.Sessions[0].ID, testSessionID)
 	}
 	if loaded.Sessions[0].Tunnel.LocalPort != 4001 {
 		t.Errorf("LocalPort = %d, want 4001", loaded.Sessions[0].Tunnel.LocalPort)
+	}
+}
+
+func TestSaveUsesAtomicTempFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+
+	if err := Save(path, &State{Sessions: []Session{{ID: testSessionID}}}); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	leftovers, err := filepath.Glob(filepath.Join(dir, ".state-*.json"))
+	if err != nil {
+		t.Fatalf("glob temp state files: %v", err)
+	}
+	if len(leftovers) != 0 {
+		t.Fatalf("leftover temp state files = %v, want none", leftovers)
+	}
+
+	loaded, err := LoadState(path)
+	if err != nil {
+		t.Fatalf("LoadState() error: %v", err)
+	}
+	if len(loaded.Sessions) != 1 || loaded.Sessions[0].ID != testSessionID {
+		t.Fatalf("loaded state = %+v, want saved session", loaded)
 	}
 }
 
@@ -115,8 +142,8 @@ func TestDefaultPath(t *testing.T) {
 
 func TestGenerateID(t *testing.T) {
 	id := GenerateID()
-	if len(id) != 8 {
-		t.Errorf("GenerateID() len = %d, want 8", len(id))
+	if len(id) != 16 {
+		t.Errorf("GenerateID() len = %d, want 16", len(id))
 	}
 
 	id2 := GenerateID()
@@ -134,7 +161,7 @@ func TestStateRoundTripWithLabelsAndAccounts(t *testing.T) {
 	s := &State{
 		Sessions: []Session{
 			{
-				ID:      "abc123",
+				ID:      testSessionID,
 				Project: "neonwatty/bleep",
 				Machine: "mm1",
 				Branch:  "main",
@@ -143,7 +170,7 @@ func TestStateRoundTripWithLabelsAndAccounts(t *testing.T) {
 		},
 		MachineLabels: map[string][]MachineLabel{
 			"mm1": {
-				{Name: "bleep", SessionID: "abc123", CreatedAt: created, LastSeenPID: 4242},
+				{Name: "bleep", SessionID: testSessionID, CreatedAt: created, LastSeenPID: 4242},
 				{Name: "deckchecker", SessionID: "", CreatedAt: created, LastSeenPID: 0},
 			},
 		},
@@ -167,8 +194,8 @@ func TestStateRoundTripWithLabelsAndAccounts(t *testing.T) {
 	if loaded.MachineLabels["mm1"][0].Name != "bleep" {
 		t.Errorf("label[0].Name = %q, want %q", loaded.MachineLabels["mm1"][0].Name, "bleep")
 	}
-	if loaded.MachineLabels["mm1"][0].SessionID != "abc123" {
-		t.Errorf("label[0].SessionID = %q, want %q", loaded.MachineLabels["mm1"][0].SessionID, "abc123")
+	if loaded.MachineLabels["mm1"][0].SessionID != testSessionID {
+		t.Errorf("label[0].SessionID = %q, want %q", loaded.MachineLabels["mm1"][0].SessionID, testSessionID)
 	}
 	if loaded.MachineLabels["mm1"][1].SessionID != "" {
 		t.Errorf("label[1].SessionID = %q, want empty (orphan)", loaded.MachineLabels["mm1"][1].SessionID)

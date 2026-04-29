@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/neonwatty/fleet/internal/config"
@@ -21,14 +20,10 @@ func Teardown(ctx context.Context, m config.Machine, sess Session, tun *tunnel.T
 
 	// 2. Remove remote worktree
 	if sess.WorktreePath != "" {
-		rmCmd := fmt.Sprintf("rm -rf %s", sess.WorktreePath)
+		rmCmd := fmt.Sprintf("rm -rf -- %s", shellQuotePath(sess.WorktreePath))
 		_, _ = fleetexec.Run(ctx, m, rmCmd)
 
-		// Prune worktrees on the bare repo
-		org, repo := splitProject(sess.Project)
-		home := "~"
-		bareDir := filepath.Join(home, "fleet-repos", org, repo+".git")
-		pruneCmd := fmt.Sprintf("git -C %s worktree prune", bareDir)
+		pruneCmd := fmt.Sprintf("git -C %s worktree prune", shellQuotePath(bareRepoPathForSession(sess)))
 		_, _ = fleetexec.Run(ctx, m, pruneCmd)
 	}
 

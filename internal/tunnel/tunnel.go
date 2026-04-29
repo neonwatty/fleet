@@ -64,5 +64,10 @@ func (t *Tunnel) Stop() error {
 	if t.Cmd == nil || t.Cmd.Process == nil {
 		return nil
 	}
-	return t.Cmd.Process.Kill()
+	if t.Cmd.ProcessState != nil {
+		return nil
+	}
+	err := t.Cmd.Process.Kill()
+	_ = t.Cmd.Wait()
+	return err
 }
