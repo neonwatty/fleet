@@ -163,7 +163,11 @@ Reconciles state against reality. Finds orphaned worktrees (no Claude process ru
 
 ```bash
 fleet clean
+fleet clean --dry-run
+fleet doctor
 ```
+
+`fleet doctor` is a read-only alias for `fleet clean --dry-run`. It reports the same reconciliation plan without changing state, removing worktrees, or touching tunnels.
 
 ## Menu Bar
 

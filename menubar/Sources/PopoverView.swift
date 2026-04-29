@@ -34,9 +34,16 @@ struct PopoverView: View {
                 .tracking(0.8)
                 .foregroundStyle(.secondary)
             Spacer()
-            Text("v0.1.0")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+            VStack(alignment: .trailing, spacing: 1) {
+                Text("v0.1.0")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                if let snap = client.snapshot {
+                    Text(Self.lastUpdatedText(timestamp: snap.timestamp))
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+            }
         }
     }
 
@@ -155,5 +162,16 @@ struct PopoverView: View {
 
     static func formatSwap(_ swapGB: Double) -> String {
         String(format: "%.1f", swapGB)
+    }
+
+    static func lastUpdatedText(timestamp: String) -> String {
+        let parser = ISO8601DateFormatter()
+        guard let date = parser.date(from: timestamp) else {
+            return "Updated --"
+        }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        formatter.timeZone = .current
+        return "Updated \(formatter.string(from: date))"
     }
 }
