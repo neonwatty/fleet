@@ -58,6 +58,15 @@ final class StatusItemControllerIconStateTests: XCTestCase {
         XCTAssertEqual(StatusItemController.iconState(snapshot: snap, error: nil), .normal)
     }
 
+    func testOfflineMachineDoesNotOverrideHealthyOnlineMachines() {
+        let snap = snapshot([
+            machine(health: "free"),
+            machine(health: "ok"),
+            machine(health: "", status: "offline"),
+        ])
+        XCTAssertEqual(StatusItemController.iconState(snapshot: snap, error: nil), .normal)
+    }
+
     func testAllOffline() {
         let snap = snapshot([
             machine(health: "offline", status: "offline"),
