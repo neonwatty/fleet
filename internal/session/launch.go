@@ -109,18 +109,7 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 	}
 	usedPorts := state.UsedPorts()
 
-	var localPort int
-	if pinnedLocal > 0 {
-		localPort, err = tunnel.AllocatePortPinned(pinnedLocal, usedPorts)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %v. Auto-assigning port.\n", err)
-			localPort, err = tunnel.AllocatePort(
-				opts.Settings.PortRange[0], opts.Settings.PortRange[1], usedPorts)
-		}
-	} else if !opts.Machine.IsLocal() {
-		localPort, err = tunnel.AllocatePort(
-			opts.Settings.PortRange[0], opts.Settings.PortRange[1], usedPorts)
-	}
+	localPort, err := allocateLaunchPort(opts.Machine, opts.Settings, pinnedLocal, usedPorts)
 	if err != nil {
 		return nil, fmt.Errorf("allocate port: %w", err)
 	}
@@ -152,6 +141,26 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 
 	launchSucceeded = true
 	return &LaunchResult{Session: sess, Tunnel: tun}, nil
+}
+
+func allocateLaunchPort(
+	m config.Machine,
+	settings config.Settings,
+	pinnedLocal int,
+	usedPorts map[int]bool,
+) (int, error) {
+	if pinnedLocal > 0 {
+		localPort, err := tunnel.AllocatePortPinned(pinnedLocal, usedPorts)
+		if err == nil {
+			return localPort, nil
+		}
+		fmt.Fprintf(os.Stderr, "Warning: %v. Auto-assigning port.\n", err)
+		return tunnel.AllocatePort(settings.PortRange[0], settings.PortRange[1], usedPorts)
+	}
+	if !m.IsLocal() {
+		return tunnel.AllocatePort(settings.PortRange[0], settings.PortRange[1], usedPorts)
+	}
+	return 0, nil
 }
 
 func cleanupFailedLaunch(
