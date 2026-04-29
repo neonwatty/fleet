@@ -147,10 +147,7 @@ func refresh(cfg *config.Config, statePath string) tea.Cmd {
 		healths := machine.ProbeAll(ctx, enabled)
 		state, _ := session.LoadState(statePath)
 
-		processes := make(map[string][]machine.ProcessGroup)
-		for _, m := range enabled {
-			processes[m.Name] = machine.ProbeProcesses(ctx, m)
-		}
+		processes := machine.ProbeProcessesAll(ctx, enabled)
 
 		return refreshMsg{healths: healths, state: state, processes: processes}
 	}

@@ -34,7 +34,7 @@ func Probe(ctx context.Context, m config.Machine) Health {
 	cmd := "vm_stat; echo '===SWAP==='; sysctl vm.swapusage; " +
 		"echo '===MEM==='; sysctl -n hw.memsize; " +
 		"echo '===CLAUDE==='; ps -eo comm | grep -c '^claude$' || echo 0"
-	out, err := fleetexec.Run(probeCtx, m, cmd)
+	out, err := fleetexec.RunWithTimeout(probeCtx, m, cmd, 10*time.Second)
 	if err != nil {
 		h.Error = err.Error()
 		return h

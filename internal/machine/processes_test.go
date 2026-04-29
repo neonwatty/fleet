@@ -1,6 +1,7 @@
 package machine
 
 import (
+	"context"
 	"testing"
 )
 
@@ -56,6 +57,13 @@ func TestClassifyProcesses(t *testing.T) {
 	devServers := findGroup(groups, "Dev Servers")
 	if devServers == nil {
 		t.Fatal("expected Dev Servers group")
+	}
+}
+
+func TestProbeProcessesAllEmpty(t *testing.T) {
+	got := ProbeProcessesAll(context.Background(), nil)
+	if len(got) != 0 {
+		t.Fatalf("len(ProbeProcessesAll(nil)) = %d, want 0", len(got))
 	}
 }
 

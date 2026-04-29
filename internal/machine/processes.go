@@ -37,13 +37,34 @@ func ProbeProcesses(ctx context.Context, m config.Machine) []ProcessGroup {
 	defer cancel()
 
 	cmd := "ps -eo rss,pid,command -m | head -51 | tail -50"
-	out, err := fleetexec.Run(probeCtx, m, cmd)
+	out, err := fleetexec.RunWithTimeout(probeCtx, m, cmd, 10*time.Second)
 	if err != nil {
 		return nil
 	}
 
 	procs := parseProcesses(out)
 	return ClassifyProcesses(procs)
+}
+
+func ProbeProcessesAll(ctx context.Context, machines []config.Machine) map[string][]ProcessGroup {
+	type result struct {
+		name   string
+		groups []ProcessGroup
+	}
+
+	ch := make(chan result, len(machines))
+	for _, m := range machines {
+		go func(m config.Machine) {
+			ch <- result{name: m.Name, groups: ProbeProcesses(ctx, m)}
+		}(m)
+	}
+
+	out := make(map[string][]ProcessGroup, len(machines))
+	for range machines {
+		r := <-ch
+		out[r.name] = r.groups
+	}
+	return out
 }
 
 func KillGroup(ctx context.Context, m config.Machine, group ProcessGroup) error {

@@ -165,9 +165,10 @@ Reconciles state against reality. Finds orphaned worktrees (no Claude process ru
 fleet clean
 fleet clean --dry-run
 fleet doctor
+fleet doctor --machine mm1
 ```
 
-`fleet doctor` is a read-only alias for `fleet clean --dry-run`. It reports the same reconciliation plan without changing state, removing worktrees, or touching tunnels.
+`fleet doctor` is read-only. It checks config loading, state readability, SSH reachability, and configured remote base directories, then prints the same cleanup reconciliation plan as `fleet clean --dry-run`.
 
 ## Menu Bar
 

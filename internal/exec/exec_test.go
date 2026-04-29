@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/neonwatty/fleet/internal/config"
 )
@@ -62,11 +63,31 @@ func TestBuildSSHCommandNonInteractive(t *testing.T) {
 
 func TestRunWithTimeout(t *testing.T) {
 	local := config.Machine{Name: "local", Host: "localhost"}
-	ctx, cancel := context.WithTimeout(context.Background(), 0)
-	defer cancel()
 
-	_, err := Run(ctx, local, "sleep 10")
+	_, err := RunWithTimeout(context.Background(), local, "sleep 10", time.Nanosecond)
 	if err == nil {
 		t.Error("expected timeout error")
+	}
+	if !strings.Contains(err.Error(), "timed out") {
+		t.Fatalf("error = %q, want timeout message", err.Error())
+	}
+	if !strings.Contains(err.Error(), "machine local") {
+		t.Fatalf("error = %q, want machine name", err.Error())
+	}
+}
+
+func TestRunFailureIncludesMachineCommandAndStderr(t *testing.T) {
+	local := config.Machine{Name: "local", Host: "localhost"}
+
+	_, err := Run(context.Background(), local, "echo nope >&2; exit 7")
+	if err == nil {
+		t.Fatal("expected command error")
+	}
+
+	msg := err.Error()
+	for _, want := range []string{"machine local", "echo nope", "stderr: nope"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("error = %q, want to contain %q", msg, want)
+		}
 	}
 }

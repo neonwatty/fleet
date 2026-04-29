@@ -178,12 +178,15 @@ func cleanupFailedLaunch(
 	if !worktreeCreated || remoteWork == "" {
 		return
 	}
+	cleanupCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	rmCmd := fmt.Sprintf("rm -rf -- %s", shellQuotePath(remoteWork))
-	_, _ = run(ctx, m, rmCmd)
+	_, _ = run(cleanupCtx, m, rmCmd)
 
 	if remoteBare != "" {
 		pruneCmd := fmt.Sprintf("git -C %s worktree prune 2>/dev/null || true", shellQuotePath(remoteBare))
-		_, _ = run(ctx, m, pruneCmd)
+		_, _ = run(cleanupCtx, m, pruneCmd)
 	}
 }
 
