@@ -46,7 +46,7 @@
     }
   ],
   "sessions": [
-    {"id": "a1b2c3", "project": "neonwatty/bleep", "machine": "mm1", "branch": "main", "account": "personal-max", "label": "bleep", "tunnel_local_port": 3000, "tunnel_remote_port": 3000, "started_at": "2026-04-12T09:15:00Z"},
+    {"id": "a1b2c3", "project": "neonwatty/bleep", "machine": "mm1", "branch": "main", "account": "personal-max", "launch_command": "npm run agent", "label": "bleep", "tunnel_local_port": 3000, "tunnel_remote_port": 3000, "started_at": "2026-04-12T09:15:00Z"},
     {"id": "d4e5f6", "project": "neonwatty/seatify", "machine": "mm2", "branch": "main", "account": "work-team", "label": "seatify", "tunnel_local_port": 4001, "tunnel_remote_port": 3000, "started_at": "2026-04-12T10:00:00Z"}
   ]
 }

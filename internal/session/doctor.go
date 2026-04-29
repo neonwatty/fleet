@@ -11,12 +11,14 @@ import (
 
 type DoctorOptions struct {
 	Machine string
+	Fix     bool
 }
 
 type DoctorResult struct {
 	CheckedMachines int
 	Issues          []string
 	Clean           CleanResult
+	Fixed           int
 }
 
 func (r DoctorResult) OK() bool {
@@ -40,7 +42,9 @@ func Doctor(ctx context.Context, cfg *config.Config, statePath string, opts Doct
 	result.CheckedMachines = len(machines)
 
 	for _, m := range machines {
-		result.Issues = append(result.Issues, checkDoctorMachine(ctx, cfg.Settings, m)...)
+		check := checkDoctorMachine(ctx, cfg.Settings, m, opts.Fix)
+		result.Issues = append(result.Issues, check.Issues...)
+		result.Fixed += check.Fixed
 	}
 
 	cleanResult, err := CleanWithOptions(ctx, cfg, statePath, CleanOptions{DryRun: true})
@@ -50,7 +54,11 @@ func Doctor(ctx context.Context, cfg *config.Config, statePath string, opts Doct
 	result.Clean = cleanResult
 
 	if len(result.Issues) == 0 {
-		fmt.Println("Doctor: no machine configuration issues found.")
+		if result.Fixed > 0 {
+			fmt.Printf("Doctor: fixed %d machine configuration issue(s).\n", result.Fixed)
+		} else {
+			fmt.Println("Doctor: no machine configuration issues found.")
+		}
 	} else {
 		fmt.Printf("Doctor: found %d machine configuration issue(s).\n", len(result.Issues))
 	}
@@ -70,15 +78,20 @@ func doctorMachines(cfg *config.Config, target string) ([]config.Machine, error)
 	return nil, fmt.Errorf("machine %q not found or not enabled", target)
 }
 
-func checkDoctorMachine(ctx context.Context, settings config.Settings, m config.Machine) []string {
+type doctorMachineCheck struct {
+	Issues []string
+	Fixed  int
+}
+
+func checkDoctorMachine(ctx context.Context, settings config.Settings, m config.Machine, fix bool) doctorMachineCheck {
 	fmt.Printf("Machine %s:\n", m.Name)
-	var issues []string
+	result := doctorMachineCheck{}
 
 	if _, err := fleetexec.RunWithTimeout(ctx, m, "true", 5*time.Second); err != nil {
 		issue := fmt.Sprintf("ssh reachability failed: %v", err)
 		fmt.Printf("  SSH: error (%v)\n", err)
-		issues = append(issues, fmt.Sprintf("%s: %s", m.Name, issue))
-		return issues
+		result.Issues = append(result.Issues, fmt.Sprintf("%s: %s", m.Name, issue))
+		return result
 	}
 	fmt.Println("  SSH: ok")
 
@@ -93,18 +106,35 @@ func checkDoctorMachine(ctx context.Context, settings config.Settings, m config.
 		if check.path == "" {
 			issue := fmt.Sprintf("%s path is empty", check.name)
 			fmt.Printf("  %s: error (%s)\n", check.name, issue)
-			issues = append(issues, fmt.Sprintf("%s: %s", m.Name, issue))
+			result.Issues = append(result.Issues, fmt.Sprintf("%s: %s", m.Name, issue))
 			continue
 		}
-		cmd := fmt.Sprintf("test -d %s", shellQuotePath(check.path))
-		if _, err := fleetexec.RunWithTimeout(ctx, m, cmd, 5*time.Second); err != nil {
+		if !doctorPathExists(ctx, m, check.path) {
+			if fix {
+				mkdirCmd := fmt.Sprintf("mkdir -p %s", shellQuotePath(check.path))
+				if _, err := fleetexec.RunWithTimeout(ctx, m, mkdirCmd, 10*time.Second); err != nil {
+					issue := fmt.Sprintf("%s create failed: %s", check.name, check.path)
+					fmt.Printf("  %s: error (%s: %v)\n", check.name, issue, err)
+					result.Issues = append(result.Issues, fmt.Sprintf("%s: %s", m.Name, issue))
+					continue
+				}
+				result.Fixed++
+				fmt.Printf("  %s: created (%s)\n", check.name, check.path)
+				continue
+			}
 			issue := fmt.Sprintf("%s missing or inaccessible: %s", check.name, check.path)
 			fmt.Printf("  %s: error (%s)\n", check.name, issue)
-			issues = append(issues, fmt.Sprintf("%s: %s", m.Name, issue))
+			result.Issues = append(result.Issues, fmt.Sprintf("%s: %s", m.Name, issue))
 			continue
 		}
 		fmt.Printf("  %s: ok (%s)\n", check.name, check.path)
 	}
 
-	return issues
+	return result
+}
+
+func doctorPathExists(ctx context.Context, m config.Machine, path string) bool {
+	cmd := fmt.Sprintf("test -d %s", shellQuotePath(path))
+	_, err := fleetexec.RunWithTimeout(ctx, m, cmd, 5*time.Second)
+	return err == nil
 }

@@ -9,17 +9,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func labelCmd() *cobra.Command {
+func labelCmd(app *commandContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "label",
 		Short: "Manage machine-scoped session labels",
 	}
-	cmd.AddCommand(labelSetCmd())
-	cmd.AddCommand(labelListCmd())
+	cmd.AddCommand(labelSetCmd(app))
+	cmd.AddCommand(labelListCmd(app))
 	return cmd
 }
 
-func labelSetCmd() *cobra.Command {
+func labelSetCmd(app *commandContext) *cobra.Command {
 	var remove bool
 	var clear bool
 	var sessionID string
@@ -37,15 +37,15 @@ Examples:
 `,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(config.DefaultPath())
+			cfg, err := app.loadConfig()
 			if err != nil {
-				return fmt.Errorf("load config: %w", err)
+				return err
 			}
 			if err := assertKnownMachine(cfg, args[0]); err != nil {
 				return err
 			}
 
-			statePath := session.DefaultStatePath()
+			statePath := app.statePath
 			machineName := args[0]
 
 			if clear {
@@ -70,22 +70,22 @@ Examples:
 	return cmd
 }
 
-func labelListCmd() *cobra.Command {
+func labelListCmd(app *commandContext) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list [machine]",
 		Short: "List labels across the fleet or on one machine",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 1 {
-				cfg, err := config.Load(config.DefaultPath())
+				cfg, err := app.loadConfig()
 				if err != nil {
-					return fmt.Errorf("load config: %w", err)
+					return err
 				}
 				if err := assertKnownMachine(cfg, args[0]); err != nil {
 					return err
 				}
 			}
-			statePath := session.DefaultStatePath()
+			statePath := app.statePath
 			state, err := session.LoadState(statePath)
 			if err != nil {
 				return fmt.Errorf("load state: %w", err)

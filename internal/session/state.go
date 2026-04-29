@@ -16,16 +16,17 @@ type State struct {
 }
 
 type Session struct {
-	ID           string     `json:"id"`
-	Project      string     `json:"project"`
-	Machine      string     `json:"machine"`
-	Branch       string     `json:"branch"`
-	Account      string     `json:"account,omitempty"`
-	WorktreePath string     `json:"worktree_path"`
-	BareRepoPath string     `json:"bare_repo_path,omitempty"`
-	Tunnel       TunnelInfo `json:"tunnel"`
-	StartedAt    time.Time  `json:"started_at"`
-	OwnerPID     int        `json:"pid"` // fleet CLI PID for signal cleanup, NOT the remote claude PID
+	ID            string     `json:"id"`
+	Project       string     `json:"project"`
+	Machine       string     `json:"machine"`
+	Branch        string     `json:"branch"`
+	Account       string     `json:"account,omitempty"`
+	LaunchCommand string     `json:"launch_command,omitempty"`
+	WorktreePath  string     `json:"worktree_path"`
+	BareRepoPath  string     `json:"bare_repo_path,omitempty"`
+	Tunnel        TunnelInfo `json:"tunnel"`
+	StartedAt     time.Time  `json:"started_at"`
+	OwnerPID      int        `json:"pid"` // fleet CLI PID for signal cleanup, NOT the remote claude PID
 }
 
 type MachineLabel struct {
@@ -56,12 +57,28 @@ func LoadState(path string) (*State, error) {
 
 	var s State
 	if err := json.Unmarshal(data, &s); err != nil {
-		return nil, fmt.Errorf("parse state: %w", err)
+		return nil, fmt.Errorf("parse state %s: %w", path, err)
 	}
+	s.Normalize()
 	return &s, nil
 }
 
+func (s *State) Normalize() {
+	if s.Sessions == nil {
+		s.Sessions = []Session{}
+	}
+	if s.MachineLabels == nil {
+		s.MachineLabels = map[string][]MachineLabel{}
+	}
+	for name, labels := range s.MachineLabels {
+		if labels == nil {
+			s.MachineLabels[name] = []MachineLabel{}
+		}
+	}
+}
+
 func Save(path string, s *State) error {
+	s.Normalize()
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("create state dir: %w", err)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -234,45 +233,4 @@ func localProcessExists(pid int) bool {
 	}
 	err = process.Signal(syscall.Signal(0))
 	return err == nil || err == syscall.EPERM
-}
-
-func killOrphanTunnels(aliveSessions []Session) {
-	aliveLocalPorts := make(map[int]bool)
-	for _, s := range aliveSessions {
-		if s.Tunnel.LocalPort > 0 {
-			aliveLocalPorts[s.Tunnel.LocalPort] = true
-		}
-	}
-
-	out, err := fleetexec.RunWithTimeout(context.Background(),
-		config.Machine{Host: "localhost"},
-		"ps aux | grep 'ssh -N -L' | grep -v grep || true",
-		5*time.Second)
-	if err != nil {
-		return
-	}
-
-	for _, line := range strings.Split(out, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		isNeeded := false
-		for port := range aliveLocalPorts {
-			if strings.Contains(line, fmt.Sprintf("%d:localhost:", port)) {
-				isNeeded = true
-				break
-			}
-		}
-		if !isNeeded {
-			fmt.Printf("  Found orphaned tunnel process: %s\n", truncateString(line, 80))
-		}
-	}
-}
-
-func truncateString(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
 }

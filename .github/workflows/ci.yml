@@ -11,6 +11,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  GOLANGCI_LINT_VERSION: v2.1.6
+  GOVULNCHECK_VERSION: v1.1.4
+  GO_COVERAGE_MIN: "50.0"
+
 jobs:
   quality-checks:
     runs-on: macos-latest
@@ -20,6 +25,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          cache: true
       - name: Check formatting
         run: test -z "$(gofmt -l .)"
       - name: Vet
@@ -29,7 +35,7 @@ jobs:
           go mod tidy
           git diff --exit-code go.mod go.sum
       - name: Install golangci-lint v2
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
       - name: Lint
         run: golangci-lint run ./...
 
@@ -41,10 +47,21 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          cache: true
       - name: Run tests with coverage
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
       - name: Coverage summary
         run: go tool cover -func=coverage.out | tail -1
+      - name: Enforce coverage floor
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ { gsub("%", "", $3); print $3 }')
+          awk -v total="$total" -v min="$GO_COVERAGE_MIN" 'BEGIN {
+            if (total + 0 < min + 0) {
+              printf("coverage %.1f%% is below %.1f%%\n", total, min)
+              exit 1
+            }
+            printf("coverage %.1f%% meets %.1f%% floor\n", total, min)
+          }'
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
@@ -60,8 +77,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          cache: true
       - name: Build
-        run: go build -o bin/fleet ./cmd/fleet/
+        run: |
+          go build \
+            -ldflags "-X main.version=ci -X main.commit=${GITHUB_SHA::7} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o bin/fleet ./cmd/fleet/
       - name: Verify binary
         run: bin/fleet --version
 
@@ -87,8 +108,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          cache: true
       - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+        run: go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
       - name: Run vulnerability check
         run: govulncheck ./...
 

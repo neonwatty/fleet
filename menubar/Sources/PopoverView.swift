@@ -12,7 +12,10 @@ struct PopoverView: View {
             if let error = client.lastError {
                 errorBlock(error)
             } else if let snap = client.snapshot {
-                machineList(snap)
+                ScrollView {
+                    machineList(snap)
+                }
+                .frame(maxHeight: 420)
             } else {
                 Text("Loading…")
                     .foregroundStyle(.secondary)
@@ -54,6 +57,7 @@ struct PopoverView: View {
                 .foregroundStyle(.red)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxHeight: 220)
     }
 
     private func machineList(_ snap: FleetSnapshot) -> some View {
@@ -69,10 +73,14 @@ struct PopoverView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(m.name)
                     .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                 if !m.accounts.isEmpty {
                     Text("[\(m.accounts.joined(separator: ","))]")
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
                 Spacer()
                 Text(m.health)
@@ -104,6 +112,8 @@ struct PopoverView: View {
                     Text(l.live ? l.name : "\(l.name) (stale)")
                         .font(.system(size: 11))
                         .foregroundStyle(l.live ? Color.primary : Color.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
                 .padding(.leading, 12)
             }
@@ -113,6 +123,10 @@ struct PopoverView: View {
     private var footer: some View {
         HStack {
             Button("Open full dashboard") { Self.openFullDashboard() }
+                .buttonStyle(.plain)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            Button("Preferences") { Self.openPreferences() }
                 .buttonStyle(.plain)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -130,6 +144,11 @@ struct PopoverView: View {
         proc.launchPath = path
         proc.arguments = args
         try? proc.run()
+    }
+
+    private static func openPreferences() {
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     /// Returns the command used to open the full dashboard in Terminal.

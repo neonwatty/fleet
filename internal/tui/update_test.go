@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/neonwatty/fleet/internal/config"
+	"github.com/neonwatty/fleet/internal/machine"
 	"github.com/neonwatty/fleet/internal/session"
 )
 
@@ -156,5 +157,105 @@ func TestRenameEscCancelsWithoutWriting(t *testing.T) {
 	}
 	if labels := loaded.MachineLabels["mm1"]; len(labels) != 0 {
 		t.Errorf("expected no labels on mm1 after Esc, got %d (%+v)", len(labels), labels)
+	}
+}
+
+func TestKillSessionRequiresConfirmation(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "state.json")
+	m := newRenameTestModel(t, statePath)
+
+	m = updateModel(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+
+	if !m.confirming {
+		t.Fatalf("expected confirming = true after pressing x on sessions panel")
+	}
+	if m.pendingAction != actionKillSession {
+		t.Fatalf("pendingAction = %v, want actionKillSession", m.pendingAction)
+	}
+	if got := m.confirmationPrompt(); got != "Kill selected session?" {
+		t.Fatalf("confirmationPrompt() = %q", got)
+	}
+}
+
+func TestConfirmationEscCancels(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "state.json")
+	m := newRenameTestModel(t, statePath)
+	m.confirming = true
+	m.pendingAction = actionKillSession
+
+	m = updateModel(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+
+	if m.confirming {
+		t.Fatalf("expected confirming = false after Esc")
+	}
+	if m.pendingAction != actionNone {
+		t.Fatalf("pendingAction = %v, want actionNone", m.pendingAction)
+	}
+	if m.statusMessage != "Cancelled" {
+		t.Fatalf("statusMessage = %q, want Cancelled", m.statusMessage)
+	}
+}
+
+func TestKillProcessRequiresConfirmation(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "state.json")
+	cfg := &config.Config{
+		Settings: config.Settings{PollInterval: 5},
+		Machines: []config.Machine{{Name: "mm1", Host: "mm1", Enabled: true}},
+	}
+	m := NewModel(cfg, statePath)
+	m.activePanel = panelProcesses
+	m.selectedRow = 0
+	m.selectedMachine = 0
+	m.healths = []machine.Health{{Name: "mm1", Online: true}}
+	m.processes = map[string][]machine.ProcessGroup{
+		"mm1": {
+			{Name: "Dev Servers", PIDs: []int{1234}, Killable: true},
+		},
+	}
+
+	m = updateModel(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+
+	if !m.confirming {
+		t.Fatalf("expected confirming = true after pressing d on a killable process group")
+	}
+	if m.pendingAction != actionKillProcess {
+		t.Fatalf("pendingAction = %v, want actionKillProcess", m.pendingAction)
+	}
+}
+
+func TestNavigationClampsToPanelRows(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "state.json")
+	m := newRenameTestModel(t, statePath)
+
+	for range 5 {
+		m = updateModel(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+
+	if m.selectedRow != 0 {
+		t.Fatalf("selectedRow = %d, want 0 for single-session panel", m.selectedRow)
+	}
+}
+
+func TestRefreshClampsStaleSelection(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "state.json")
+	m := newRenameTestModel(t, statePath)
+	m.activePanel = panelMachines
+	m.selectedRow = 10
+	m.selectedMachine = 10
+
+	result, _ := m.Update(refreshMsg{
+		healths: []machine.Health{
+			{Name: "mm1", Online: true},
+			{Name: "mm2", Online: true},
+		},
+		state: &session.State{},
+	})
+	next := result.(model)
+
+	if next.selectedRow != 1 {
+		t.Fatalf("selectedRow = %d, want 1", next.selectedRow)
+	}
+	if next.selectedMachine != 1 {
+		t.Fatalf("selectedMachine = %d, want 1", next.selectedMachine)
 	}
 }

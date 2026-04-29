@@ -2,11 +2,9 @@ package tui
 
 import (
 	"context"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/neonwatty/fleet/internal/machine"
-	"github.com/neonwatty/fleet/internal/session"
 )
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -14,6 +12,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.renaming {
 			return m.handleRenameKey(msg)
+		}
+		if m.confirming {
+			return m.handleConfirmKey(msg)
 		}
 		return m.handleKey(msg)
 	case tea.WindowSizeMsg:
@@ -25,6 +26,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.healths = msg.healths
 		m.state = msg.state
 		m.processes = msg.processes
+		m = m.clampSelection()
 	case swapScanMsg:
 		m.swapScanning = false
 		m.swapScanTarget = ""
@@ -32,6 +34,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.processes = make(map[string][]machine.ProcessGroup)
 		}
 		m.processes[msg.machineName] = msg.groups
+		m = m.clampSelection()
 	}
 	return m, nil
 }
@@ -43,6 +46,7 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key == "q" || key == "ctrl+c" {
 		return m, tea.Quit
 	}
+	m.statusMessage = ""
 	if nav, ok := m.handleNavKey(key); ok {
 		return nav, nil
 	}
@@ -61,7 +65,9 @@ func (m model) handleNavKey(key string) (model, bool) {
 		m.activePanel = (m.activePanel - 1 + panelCount) % panelCount
 		m.selectedRow = 0
 	case "j", "down":
-		m.selectedRow++
+		if m.selectedRow < m.rowCount()-1 {
+			m.selectedRow++
+		}
 		if m.activePanel == panelMachines {
 			m.selectedMachine = m.selectedRow
 		}
@@ -75,7 +81,54 @@ func (m model) handleNavKey(key string) (model, bool) {
 	default:
 		return m, false
 	}
-	return m, true
+	return m.clampSelection(), true
+}
+
+func (m model) rowCount() int {
+	switch m.activePanel {
+	case panelMachines:
+		return len(m.healths)
+	case panelSessions:
+		if m.state == nil {
+			return 0
+		}
+		return len(m.state.Sessions)
+	case panelTunnels:
+		if m.state == nil {
+			return 0
+		}
+		return len(tunneledSessions(m.state.Sessions))
+	case panelProcesses:
+		if m.processes == nil {
+			return 0
+		}
+		return len(m.processes[m.selectedMachineName()])
+	default:
+		return 0
+	}
+}
+
+func (m model) clampSelection() model {
+	if len(m.healths) == 0 {
+		m.selectedMachine = 0
+	} else if m.selectedMachine >= len(m.healths) {
+		m.selectedMachine = len(m.healths) - 1
+	}
+	rows := m.rowCount()
+	if rows == 0 {
+		m.selectedRow = 0
+		return m
+	}
+	if m.selectedRow >= rows {
+		m.selectedRow = rows - 1
+	}
+	if m.selectedRow < 0 {
+		m.selectedRow = 0
+	}
+	if m.activePanel == panelMachines {
+		m.selectedMachine = m.selectedRow
+	}
+	return m
 }
 
 // handleActionKey handles per-panel action keys (o/x/n/s/d).
@@ -116,8 +169,22 @@ func (m model) handleKillSession() (tea.Model, tea.Cmd) {
 	if m.selectedRow >= len(m.state.Sessions) {
 		return m, nil
 	}
+	m.confirming = true
+	m.pendingAction = actionKillSession
+	return m, nil
+}
+
+func (m model) performKillSession() (tea.Model, tea.Cmd) {
+	if m.state == nil || m.selectedRow >= len(m.state.Sessions) {
+		m.statusMessage = "Error: selected session is no longer available"
+		return m, nil
+	}
 	sess := m.state.Sessions[m.selectedRow]
-	_ = killSession(context.Background(), m.cfg, sess, m.statePath)
+	if err := killSession(context.Background(), m.cfg, sess, m.statePath); err != nil {
+		m.statusMessage = "Error: " + err.Error()
+		return m, nil
+	}
+	m.statusMessage = "Killed session " + sess.ID
 	return m, refresh(m.cfg, m.statePath)
 }
 
@@ -145,46 +212,31 @@ func (m model) handleKillProcess() (tea.Model, tea.Cmd) {
 	if m.selectedRow >= len(groups) || !groups[m.selectedRow].Killable {
 		return m, nil
 	}
+	m.confirming = true
+	m.pendingAction = actionKillProcess
+	return m, nil
+}
+
+func (m model) performKillProcess() (tea.Model, tea.Cmd) {
+	if m.processes == nil {
+		m.statusMessage = "Error: selected process group is no longer available"
+		return m, nil
+	}
+	machineName := m.selectedMachineName()
+	groups := m.processes[machineName]
+	if m.selectedRow >= len(groups) || !groups[m.selectedRow].Killable {
+		m.statusMessage = "Error: selected process group is no longer available"
+		return m, nil
+	}
 	mach := m.findMachine(machineName)
 	if mach == nil {
 		return m, nil
 	}
-	_ = machine.KillGroup(context.Background(), *mach, groups[m.selectedRow])
-	return m, refresh(m.cfg, m.statePath)
-}
-
-// handleRenameKey processes a keystroke while the model is in label-rename
-// mode. Enter commits via session.AddLabel, Esc cancels, backspace trims,
-// printable runes append.
-func (m model) handleRenameKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
-		m.renaming = false
-		m.renameBuffer = ""
-	case "enter":
-		if m.state != nil && m.selectedRow < len(m.state.Sessions) {
-			sess := m.state.Sessions[m.selectedRow]
-			if strings.TrimSpace(m.renameBuffer) != "" {
-				_ = session.AddLabel(
-					m.statePath,
-					sess.Machine,
-					strings.TrimSpace(m.renameBuffer),
-					sess.ID,
-					0, // OwnerPID is the fleet CLI PID, not the remote claude PID
-				)
-			}
-		}
-		m.renaming = false
-		m.renameBuffer = ""
-		return m, refresh(m.cfg, m.statePath)
-	case "backspace":
-		if len(m.renameBuffer) > 0 {
-			m.renameBuffer = m.renameBuffer[:len(m.renameBuffer)-1]
-		}
-	default:
-		if len(msg.Runes) == 1 {
-			m.renameBuffer += string(msg.Runes)
-		}
+	group := groups[m.selectedRow]
+	if err := machine.KillGroup(context.Background(), *mach, group); err != nil {
+		m.statusMessage = "Error: " + err.Error()
+		return m, nil
 	}
-	return m, nil
+	m.statusMessage = "Killed " + group.Name + " on " + machineName
+	return m, refresh(m.cfg, m.statePath)
 }

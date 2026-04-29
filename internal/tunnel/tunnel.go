@@ -40,13 +40,7 @@ func Start(m config.Machine, localPort, remotePort int) (*Tunnel, error) {
 	}
 
 	arg := fmt.Sprintf("%d:localhost:%d", localPort, remotePort)
-	cmd := exec.Command("ssh",
-		"-N",
-		"-L", arg,
-		"-o", "ExitOnForwardFailure=yes",
-		"-o", "ConnectTimeout=5",
-		m.Host,
-	)
+	cmd := exec.Command("ssh", buildSSHForwardArgs(m, arg)...)
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start tunnel: %w", err)
@@ -58,6 +52,16 @@ func Start(m config.Machine, localPort, remotePort int) (*Tunnel, error) {
 		Machine:    m,
 		Cmd:        cmd,
 	}, nil
+}
+
+func buildSSHForwardArgs(m config.Machine, forwardArg string) []string {
+	return []string{
+		"-N",
+		"-L", forwardArg,
+		"-o", "ExitOnForwardFailure=yes",
+		"-o", "ConnectTimeout=5",
+		m.SSHTarget(),
+	}
 }
 
 func (t *Tunnel) Stop() error {

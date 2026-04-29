@@ -33,8 +33,8 @@ func TestBuildSSHCommand(t *testing.T) {
 	args := buildSSHArgs(m, "uname -a")
 
 	joined := strings.Join(args, " ")
-	if !strings.Contains(joined, "mm1") {
-		t.Errorf("expected host in args, got: %v", args)
+	if !strings.Contains(joined, "neonwatty@mm1") {
+		t.Errorf("expected user@host in args, got: %v", args)
 	}
 	if !strings.Contains(joined, "uname -a") {
 		t.Errorf("expected command in args, got: %v", args)

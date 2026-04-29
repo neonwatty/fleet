@@ -38,7 +38,18 @@ type model struct {
 	swapScanTarget  string // machine name being scanned
 	renaming        bool
 	renameBuffer    string
+	confirming      bool
+	pendingAction   destructiveAction
+	statusMessage   string
 }
+
+type destructiveAction int
+
+const (
+	actionNone destructiveAction = iota
+	actionKillSession
+	actionKillProcess
+)
 
 type tickMsg time.Time
 type refreshMsg struct {
@@ -112,13 +123,29 @@ func (m model) View() string {
 	helpParts := "tab: switch panel | j/k: navigate | o: open in browser | x: kill session | n: rename label | s: scan swap | d: kill process group | q: quit"
 	if m.renaming {
 		helpParts = fmt.Sprintf("rename label: %s▌  (enter: save, esc: cancel)", m.renameBuffer)
+	} else if m.confirming {
+		helpParts = fmt.Sprintf("%s  (y/enter: confirm, esc/n: cancel)", m.confirmationPrompt())
 	} else if m.swapScanning {
 		helpParts = fmt.Sprintf("Scanning swap on %s... | q: quit", m.swapScanTarget)
+	}
+	if m.statusMessage != "" {
+		helpParts = m.statusMessage + " | " + helpParts
 	}
 	help := helpStyle.Render(helpParts)
 
 	return fmt.Sprintf("%s\n\n%s\n%s\n%s\n%s\n\n%s",
 		title, machinesPanel, sessionsPanel, tunnelsPanel, processesPanel, help)
+}
+
+func (m model) confirmationPrompt() string {
+	switch m.pendingAction {
+	case actionKillSession:
+		return "Kill selected session?"
+	case actionKillProcess:
+		return "Kill selected process group?"
+	default:
+		return "Confirm action?"
+	}
 }
 
 func wrapPanel(title, content string, width int, active bool) string {

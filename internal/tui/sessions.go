@@ -36,6 +36,10 @@ func renderSessionsPanel(sessions []session.Session, labels map[string][]session
 			truncateStr(account, 14), truncateStr(label, 14))
 		b.WriteString(line)
 		b.WriteString("\n")
+		if s.LaunchCommand != "" && s.LaunchCommand != "claude" {
+			b.WriteString(dimStyle.Render("  cmd: " + truncateStr(s.LaunchCommand, 72)))
+			b.WriteString("\n")
+		}
 	}
 
 	return b.String()
