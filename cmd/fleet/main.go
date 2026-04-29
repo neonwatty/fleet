@@ -24,6 +24,7 @@ func main() {
 	root.AddCommand(launchCmd())
 	root.AddCommand(statusCmd())
 	root.AddCommand(cleanCmd())
+	root.AddCommand(doctorCmd())
 	root.AddCommand(labelCmd())
 	root.AddCommand(accountCmd())
 
@@ -176,7 +177,8 @@ func statusCmd() *cobra.Command {
 }
 
 func cleanCmd() *cobra.Command {
-	return &cobra.Command{
+	var dryRun bool
+	cmd := &cobra.Command{
 		Use:   "clean",
 		Short: "Clean up orphaned worktrees and stale sessions",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -184,7 +186,29 @@ func cleanCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
-			return session.Clean(context.Background(), cfg, session.DefaultStatePath())
+			_, err = session.CleanWithOptions(context.Background(), cfg, session.DefaultStatePath(), session.CleanOptions{
+				DryRun: dryRun,
+			})
+			return err
+		},
+	}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Report cleanup actions without changing state, worktrees, or tunnels")
+	return cmd
+}
+
+func doctorCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "doctor",
+		Short: "Inspect fleet state without making changes",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load(config.DefaultPath())
+			if err != nil {
+				return fmt.Errorf("load config: %w", err)
+			}
+			_, err = session.CleanWithOptions(context.Background(), cfg, session.DefaultStatePath(), session.CleanOptions{
+				DryRun: true,
+			})
+			return err
 		},
 	}
 }

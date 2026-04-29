@@ -60,6 +60,16 @@ final class PopoverLineTests: XCTestCase {
         XCTAssertTrue(line.contains("1.9GB swap"), "line = \(line)")
     }
 
+    func testLastUpdatedTextFormatsValidTimestamp() {
+        let text = PopoverView.lastUpdatedText(timestamp: "2026-04-29T12:17:52Z")
+        XCTAssertTrue(text.hasPrefix("Updated "))
+        XCTAssertFalse(text.contains("--"))
+    }
+
+    func testLastUpdatedTextHandlesInvalidTimestamp() {
+        XCTAssertEqual(PopoverView.lastUpdatedText(timestamp: "not-a-date"), "Updated --")
+    }
+
     func testOpenFullDashboardCommandUsesOsascript() {
         let (path, args) = PopoverView.openFullDashboardCommand()
         XCTAssertEqual(path, "/usr/bin/osascript")

@@ -1,8 +1,12 @@
 package session
 
 import (
+	"context"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/neonwatty/fleet/internal/config"
 )
 
 func TestClassifySessions(t *testing.T) {
@@ -34,6 +38,22 @@ func TestClassifySessions(t *testing.T) {
 	}
 	if len(stale) != 1 || stale[0].ID != "stale" {
 		t.Errorf("stale = %v, want [stale]", ids(stale))
+	}
+}
+
+func TestRemoteCheckerTreatsDeadOwnerPIDAsOrphan(t *testing.T) {
+	checker := MakeRemoteChecker(context.Background(), []config.Machine{
+		{Name: "local", Host: "localhost", Enabled: true},
+	})
+
+	got := checker(Session{
+		ID:           "dead-owner",
+		Machine:      "local",
+		WorktreePath: "/path/does/not/matter",
+		OwnerPID:     1 << 30,
+	})
+	if got != StatusOrphan {
+		t.Fatalf("status = %v, want StatusOrphan", got)
 	}
 }
 
@@ -102,6 +122,74 @@ func TestResetDanglingLabelsEmpty(t *testing.T) {
 	state := &State{}
 	if n := resetDanglingLabels(state, map[string]bool{}); n != 0 {
 		t.Errorf("resetDanglingLabels on empty state returned %d, want 0", n)
+	}
+}
+
+func TestCleanDryRunDoesNotRewriteDanglingLabels(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+	state := &State{
+		MachineLabels: map[string][]MachineLabel{
+			"mm1": {{Name: "ghost", SessionID: "gone", CreatedAt: time.Now().UTC()}},
+		},
+	}
+	if err := Save(path, state); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	result, err := CleanWithOptions(context.Background(), &config.Config{}, path, CleanOptions{DryRun: true})
+	if err != nil {
+		t.Fatalf("CleanWithOptions() error: %v", err)
+	}
+	if result.ResetLabels != 1 {
+		t.Fatalf("ResetLabels = %d, want 1", result.ResetLabels)
+	}
+
+	loaded, err := LoadState(path)
+	if err != nil {
+		t.Fatalf("LoadState() error: %v", err)
+	}
+	if loaded.MachineLabels["mm1"][0].SessionID != "gone" {
+		t.Fatalf("dry-run rewrote label: %+v", loaded.MachineLabels["mm1"][0])
+	}
+}
+
+func TestCleanResetsDanglingLabelsWithoutSessions(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+	state := &State{
+		MachineLabels: map[string][]MachineLabel{
+			"mm1": {{Name: "ghost", SessionID: "gone", CreatedAt: time.Now().UTC()}},
+		},
+	}
+	if err := Save(path, state); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	result, err := CleanWithOptions(context.Background(), &config.Config{}, path, CleanOptions{})
+	if err != nil {
+		t.Fatalf("CleanWithOptions() error: %v", err)
+	}
+	if result.ResetLabels != 1 {
+		t.Fatalf("ResetLabels = %d, want 1", result.ResetLabels)
+	}
+
+	loaded, err := LoadState(path)
+	if err != nil {
+		t.Fatalf("LoadState() error: %v", err)
+	}
+	if loaded.MachineLabels["mm1"][0].SessionID != "" {
+		t.Fatalf("SessionID = %q, want reset", loaded.MachineLabels["mm1"][0].SessionID)
+	}
+}
+
+func TestCleanResultCleaned(t *testing.T) {
+	result := CleanResult{
+		Orphans: []Session{{ID: "o1"}, {ID: "o2"}},
+		Stales:  []Session{{ID: "s1"}},
+	}
+	if result.Cleaned() != 3 {
+		t.Fatalf("Cleaned() = %d, want 3", result.Cleaned())
 	}
 }
 
