@@ -52,6 +52,12 @@ enabled = false
 	if cfg.Settings.StressThreshold != 20 {
 		t.Errorf("StressThreshold = %d, want 20", cfg.Settings.StressThreshold)
 	}
+	if cfg.Settings.WorktreeBase != "~/fleet-work" {
+		t.Errorf("WorktreeBase = %q, want tilde path preserved", cfg.Settings.WorktreeBase)
+	}
+	if cfg.Settings.BareRepoBase != "~/fleet-repos" {
+		t.Errorf("BareRepoBase = %q, want tilde path preserved", cfg.Settings.BareRepoBase)
+	}
 	if len(cfg.Machines) != 3 {
 		t.Fatalf("len(Machines) = %d, want 3", len(cfg.Machines))
 	}
