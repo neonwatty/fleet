@@ -71,12 +71,12 @@ final class FleetClient: ObservableObject {
         return try JSONDecoder().decode(FleetSnapshot.self, from: data)
     }
 
-    nonisolated private enum RunResult {
+    nonisolated enum RunResult {
         case success(FleetSnapshot)
         case failure(String)
     }
 
-    nonisolated private static func runStatus(binaryPath: String) -> RunResult {
+    nonisolated static func runStatus(binaryPath: String, timeout: TimeInterval = 20) -> RunResult {
         let process = Process()
         process.launchPath = binaryPath
         process.arguments = ["status", "--json"]
@@ -85,13 +85,19 @@ final class FleetClient: ObservableObject {
         let stderr = Pipe()
         process.standardOutput = stdout
         process.standardError = stderr
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in finished.signal() }
 
         do {
             try process.run()
         } catch {
             return .failure("launch failed: \(error.localizedDescription)")
         }
-        process.waitUntilExit()
+        if finished.wait(timeout: .now() + timeout) == .timedOut {
+            process.terminate()
+            _ = finished.wait(timeout: .now() + 1)
+            return .failure("fleet status --json timed out after \(Int(timeout))s")
+        }
 
         if process.terminationStatus != 0 {
             let errData = stderr.fileHandleForReading.readDataToEndOfFile()

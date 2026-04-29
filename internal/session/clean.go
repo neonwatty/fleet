@@ -46,13 +46,13 @@ func MakeRemoteChecker(ctx context.Context, machines []config.Machine) StatusChe
 			return StatusStale
 		}
 
-		checkDir := fmt.Sprintf("test -d %s", sess.WorktreePath)
+		checkDir := fmt.Sprintf("test -d %s", shellQuotePath(sess.WorktreePath))
 		if _, err := fleetexec.Run(ctx, m, checkDir); err != nil {
 			return StatusStale
 		}
 
-		checkProc := fmt.Sprintf("ps aux | grep '[c]laude' | grep -q %s",
-			filepath.Base(sess.WorktreePath))
+		checkProc := fmt.Sprintf("ps aux | grep '[c]laude' | grep -q -- %s",
+			shellQuote(filepath.Base(sess.WorktreePath)))
 		if _, err := fleetexec.Run(ctx, m, checkProc); err != nil {
 			return StatusOrphan
 		}
@@ -87,12 +87,10 @@ func Clean(ctx context.Context, cfg *config.Config, statePath string) error {
 		m := machineMap[sess.Machine]
 		fmt.Printf("  Cleaning orphan: %s on %s (%s)\n", sess.Project, sess.Machine, sess.WorktreePath)
 
-		rmCmd := fmt.Sprintf("rm -rf %s", sess.WorktreePath)
+		rmCmd := fmt.Sprintf("rm -rf -- %s", shellQuotePath(sess.WorktreePath))
 		_, _ = fleetexec.Run(ctx, m, rmCmd)
 
-		org, repo := splitProject(sess.Project)
-		bareDir := filepath.Join("~", "fleet-repos", org, repo+".git")
-		pruneCmd := fmt.Sprintf("git -C %s worktree prune 2>/dev/null || true", bareDir)
+		pruneCmd := fmt.Sprintf("git -C %s worktree prune 2>/dev/null || true", shellQuotePath(bareRepoPathForSession(sess)))
 		_, _ = fleetexec.Run(ctx, m, pruneCmd)
 	}
 

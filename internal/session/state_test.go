@@ -47,6 +47,31 @@ func TestStateRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSaveUsesAtomicTempFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+
+	if err := Save(path, &State{Sessions: []Session{{ID: "abc123"}}}); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	leftovers, err := filepath.Glob(filepath.Join(dir, ".state-*.json"))
+	if err != nil {
+		t.Fatalf("glob temp state files: %v", err)
+	}
+	if len(leftovers) != 0 {
+		t.Fatalf("leftover temp state files = %v, want none", leftovers)
+	}
+
+	loaded, err := LoadState(path)
+	if err != nil {
+		t.Fatalf("LoadState() error: %v", err)
+	}
+	if len(loaded.Sessions) != 1 || loaded.Sessions[0].ID != "abc123" {
+		t.Fatalf("loaded state = %+v, want saved session", loaded)
+	}
+}
+
 func TestLoadStateMissingFile(t *testing.T) {
 	s, err := LoadState("/nonexistent/state.json")
 	if err != nil {
@@ -115,8 +140,8 @@ func TestDefaultPath(t *testing.T) {
 
 func TestGenerateID(t *testing.T) {
 	id := GenerateID()
-	if len(id) != 8 {
-		t.Errorf("GenerateID() len = %d, want 8", len(id))
+	if len(id) != 16 {
+		t.Errorf("GenerateID() len = %d, want 16", len(id))
 	}
 
 	id2 := GenerateID()

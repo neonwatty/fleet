@@ -22,6 +22,7 @@ type Session struct {
 	Branch       string     `json:"branch"`
 	Account      string     `json:"account,omitempty"`
 	WorktreePath string     `json:"worktree_path"`
+	BareRepoPath string     `json:"bare_repo_path,omitempty"`
 	Tunnel       TunnelInfo `json:"tunnel"`
 	StartedAt    time.Time  `json:"started_at"`
 	OwnerPID     int        `json:"pid"` // fleet CLI PID for signal cleanup, NOT the remote claude PID
@@ -71,7 +72,33 @@ func Save(path string, s *State) error {
 		return fmt.Errorf("marshal state: %w", err)
 	}
 
-	return os.WriteFile(path, data, 0644)
+	tmp, err := os.CreateTemp(dir, ".state-*.json")
+	if err != nil {
+		return fmt.Errorf("create temp state: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath) //nolint:errcheck
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write temp state: %w", err)
+	}
+	if err := tmp.Chmod(0644); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("chmod temp state: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync temp state: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close temp state: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("replace state: %w", err)
+	}
+	syncDir(dir)
+	return nil
 }
 
 func AddSession(path string, sess Session) error {
@@ -110,7 +137,18 @@ func (s *State) UsedPorts() map[int]bool {
 }
 
 func GenerateID() string {
-	b := make([]byte, 4)
-	rand.Read(b)
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("generate session id: %v", err))
+	}
 	return hex.EncodeToString(b)
+}
+
+func syncDir(path string) {
+	dir, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer dir.Close() //nolint:errcheck
+	_ = dir.Sync()
 }

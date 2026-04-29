@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"os/exec"
 	"testing"
 )
 
@@ -39,5 +40,20 @@ func TestAllocatePortExhausted(t *testing.T) {
 	_, err := AllocatePort(4000, 4002, used)
 	if err == nil {
 		t.Error("expected error when all ports used")
+	}
+}
+
+func TestStopKillsAndWaitsForProcess(t *testing.T) {
+	cmd := exec.Command("sleep", "10")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start sleep: %v", err)
+	}
+
+	tun := &Tunnel{Cmd: cmd}
+	if err := tun.Stop(); err != nil {
+		t.Fatalf("Stop() error: %v", err)
+	}
+	if cmd.ProcessState == nil {
+		t.Fatal("Stop() should wait for process and populate ProcessState")
 	}
 }
