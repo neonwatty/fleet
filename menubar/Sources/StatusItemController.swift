@@ -46,12 +46,10 @@ final class StatusItemController {
     private func render(snapshot: FleetSnapshot?, error: String?) {
         guard let button = statusItem.button else { return }
         let state = Self.iconState(snapshot: snapshot, error: error)
-        let config = NSImage.SymbolConfiguration(paletteColors: [Self.tintColor(for: state)])
         let image = NSImage(
             systemSymbolName: Self.symbolName(for: state),
             accessibilityDescription: Self.accessibilityLabel(snapshot: snapshot, error: error)
-        )?.withSymbolConfiguration(config)
-        image?.isTemplate = false
+        )?.tinted(with: Self.tintColor(for: state))
         button.image = image
         button.contentTintColor = nil
         button.attributedTitle = NSAttributedString()
@@ -102,5 +100,19 @@ final class StatusItemController {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
+    }
+}
+
+private extension NSImage {
+    func tinted(with color: NSColor) -> NSImage {
+        let tintedImage = NSImage(size: size)
+        tintedImage.lockFocus()
+        draw(at: .zero, from: NSRect(origin: .zero, size: size), operation: .sourceOver, fraction: 1)
+        color.set()
+        NSRect(origin: .zero, size: size).fill(using: .sourceIn)
+        tintedImage.unlockFocus()
+        tintedImage.isTemplate = false
+        tintedImage.accessibilityDescription = accessibilityDescription
+        return tintedImage
     }
 }
