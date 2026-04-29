@@ -195,6 +195,9 @@ func validateWorktreeDeletePath(base, target string) error {
 
 	cleanBase := filepath.Clean(base)
 	cleanTarget := filepath.Clean(target)
+	if filepath.IsAbs(cleanTarget) {
+		cleanBase = filepath.Clean(config.ExpandPath(base))
+	}
 	if cleanTarget == "." || cleanTarget == string(filepath.Separator) {
 		return fmt.Errorf("refusing to delete unsafe worktree path %q", target)
 	}

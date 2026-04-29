@@ -35,6 +35,19 @@ func TestValidateWorktreeDeletePath(t *testing.T) {
 	}
 }
 
+func TestValidateWorktreeDeletePathAcceptsRemoteTildeTargets(t *testing.T) {
+	if err := validateWorktreeDeletePath("~/fleet-work", "~/fleet-work/repo-123"); err != nil {
+		t.Fatalf("validateWorktreeDeletePath() error = %v, want remote tilde target accepted", err)
+	}
+}
+
+func TestValidateWorktreeDeletePathExpandsBaseForLocalAbsoluteTargets(t *testing.T) {
+	target := filepath.Join(config.ExpandPath("~/fleet-work"), "repo-123")
+	if err := validateWorktreeDeletePath("~/fleet-work", target); err != nil {
+		t.Fatalf("validateWorktreeDeletePath() error = %v, want local expanded target accepted", err)
+	}
+}
+
 func TestCleanKeepsOrphanWhenDeletePathUnsafe(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")

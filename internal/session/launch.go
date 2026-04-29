@@ -81,8 +81,10 @@ func launchWithDeps(ctx context.Context, opts LaunchOpts, deps launchDeps) (*Lau
 		}
 	}
 
-	// Step 2: Fetch latest
-	fetchCmd := fmt.Sprintf("git -C %s fetch origin", shellQuotePath(remoteBare))
+	// Step 2: Fetch latest into remote-tracking refs. Bare clone defaults can
+	// leave branches under refs/heads, but worktree creation uses origin/<branch>.
+	fetchCmd := fmt.Sprintf("git -C %s fetch --prune origin %s",
+		shellQuotePath(remoteBare), shellQuote("+refs/heads/*:refs/remotes/origin/*"))
 	if _, err := deps.run(ctx, opts.Machine, fetchCmd); err != nil {
 		return nil, fmt.Errorf("fetch: %w", err)
 	}

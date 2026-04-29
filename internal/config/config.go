@@ -44,8 +44,6 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
-	cfg.Settings.WorktreeBase = ExpandPath(cfg.Settings.WorktreeBase)
-	cfg.Settings.BareRepoBase = ExpandPath(cfg.Settings.BareRepoBase)
 	if cfg.Settings.SwapScanProcs == 0 {
 		cfg.Settings.SwapScanProcs = 10
 	}
