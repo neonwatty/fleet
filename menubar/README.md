@@ -39,12 +39,14 @@ rm ~/Library/LaunchAgents/com.neonwatty.FleetMenuBar.plist
 
 ## Configuration
 
-Two knobs, both in `UserDefaults` domain `com.neonwatty.FleetMenuBar`:
+Preferences are stored in `UserDefaults` domain `com.neonwatty.FleetMenuBar`:
 
 | Key                | Type   | Default  | Notes                                            |
 |--------------------|--------|----------|--------------------------------------------------|
 | `refreshInterval`  | Double | `10.0`   | Seconds between background polls                 |
 | `fleetBinPath`     | String | (empty)  | Override for `fleet` binary path                  |
+| `fleetConfigPath`  | String | (empty)  | Passed as `fleet --config` when set               |
+| `fleetStatePath`   | String | (empty)  | Passed as `fleet --state` when set                |
 
 Set these in the native Preferences window from the popover, or with
 `defaults write`:
@@ -52,15 +54,18 @@ Set these in the native Preferences window from the popover, or with
 ```sh
 defaults write com.neonwatty.FleetMenuBar refreshInterval -int 5
 defaults write com.neonwatty.FleetMenuBar fleetBinPath -string /opt/homebrew/bin/fleet
+defaults write com.neonwatty.FleetMenuBar fleetConfigPath -string /path/to/config.toml
+defaults write com.neonwatty.FleetMenuBar fleetStatePath -string /path/to/state.json
 ```
 
 Binary resolution fallback chain: `fleetBinPath` default → `$FLEET_BIN` env var → `/opt/homebrew/bin/fleet`.
+Leave config/state paths empty to use the CLI defaults.
 
 ## Click behavior
 
 - **Click menu bar item** — toggles the popover. On open, the app refreshes fleet state immediately (not just on the next 10s tick).
-- **"Open full dashboard"** in the popover footer — launches `fleet status` (the TUI) in a new Terminal.app window.
-- **"Preferences"** in the popover footer — opens settings for the fleet binary path and refresh interval.
+- **"Open full dashboard"** in the popover footer — launches `fleet status` (the TUI) in a new Terminal.app window with the configured binary/config/state paths.
+- **"Preferences"** in the popover footer — opens settings for the fleet binary path, config path, state path, and refresh interval.
 - **"Quit"** — `NSApp.terminate(nil)`.
 
 ## Development

@@ -13,6 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let interval = UserDefaults.standard.double(forKey: "refreshInterval")
         client = FleetClient(
             binaryPath: binaryPath,
+            configPath: FleetClient.resolveConfigPath(defaults: UserDefaults.standard),
+            statePath: FleetClient.resolveStatePath(defaults: UserDefaults.standard),
             refreshInterval: interval > 0 ? interval : 10
         )
         controller = StatusItemController(client: client)
