@@ -90,6 +90,7 @@ func checkDoctorMachine(ctx context.Context, settings config.Settings, m config.
 	if _, err := fleetexec.RunWithTimeout(ctx, m, "true", 5*time.Second); err != nil {
 		issue := fmt.Sprintf("ssh reachability failed: %v", err)
 		fmt.Printf("  SSH: error (%v)\n", err)
+		fmt.Printf("  Hint: %s\n", doctorSSHRemediation(m))
 		result.Issues = append(result.Issues, fmt.Sprintf("%s: %s", m.Name, issue))
 		return result
 	}
@@ -131,6 +132,10 @@ func checkDoctorMachine(ctx context.Context, settings config.Settings, m config.
 	}
 
 	return result
+}
+
+func doctorSSHRemediation(m config.Machine) string {
+	return fmt.Sprintf("fix SSH for %s or set enabled = false for %q in config.toml", m.SSHTarget(), m.Name)
 }
 
 func doctorPathExists(ctx context.Context, m config.Machine, path string) bool {
