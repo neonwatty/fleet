@@ -221,6 +221,10 @@ readability, SSH reachability, and configured remote base directories, then
 prints the same cleanup reconciliation plan as `fleet clean --dry-run`.
 Pass `--fix` to create missing configured worktree and bare-repo base
 directories.
+Enabled machines that are offline or unreachable are reported as issues. Fix
+the SSH host, or set `enabled = false` for machines you do not want fleet to
+consider. Use `fleet doctor --machine <name>` to inspect one enabled machine
+without waiting on the whole fleet.
 
 ## Menu Bar
 

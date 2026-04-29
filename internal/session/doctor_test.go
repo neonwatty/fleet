@@ -113,6 +113,14 @@ func TestDoctorUnknownMachine(t *testing.T) {
 	}
 }
 
+func TestDoctorSSHRemediation(t *testing.T) {
+	m := config.Machine{Name: "mm0", Host: "mm0", User: "jeremywatt"}
+	want := `fix SSH for jeremywatt@mm0 or set enabled = false for "mm0" in config.toml`
+	if got := doctorSSHRemediation(m); got != want {
+		t.Fatalf("doctorSSHRemediation() = %q, want %q", got, want)
+	}
+}
+
 func mkdirAll(paths ...string) error {
 	for _, path := range paths {
 		if err := os.MkdirAll(path, 0755); err != nil {
