@@ -52,8 +52,14 @@ if [ "$INSTALL_MENUBAR" = "1" ]; then
   fi
 fi
 
+CONFIG_CREATED=0
 if [ ! -f "$HOME/.fleet/config.toml" ]; then
   "$BIN_DIR/fleet" init || true
+  CONFIG_CREATED=1
 fi
 
-"$BIN_DIR/fleet" doctor || true
+if [ "$CONFIG_CREATED" = "1" ]; then
+  "$BIN_DIR/fleet" doctor --fix --machine local || true
+else
+  "$BIN_DIR/fleet" doctor || true
+fi
