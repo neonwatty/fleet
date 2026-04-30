@@ -45,6 +45,8 @@ type Tunnel struct {
 	done       chan error
 }
 
+var sshCommandPath = "ssh"
+
 func Start(m config.Machine, localPort, remotePort int) (*Tunnel, error) {
 	if m.IsLocal() {
 		return &Tunnel{
@@ -55,7 +57,7 @@ func Start(m config.Machine, localPort, remotePort int) (*Tunnel, error) {
 	}
 
 	arg := fmt.Sprintf("%d:localhost:%d", localPort, remotePort)
-	cmd := exec.Command("ssh", buildSSHForwardArgs(m, arg)...)
+	cmd := exec.Command(sshCommandPath, buildSSHForwardArgs(m, arg)...)
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start tunnel: %w", err)

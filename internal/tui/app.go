@@ -184,7 +184,7 @@ func scanSwap(cfg *config.Config, m config.Machine, groups []machine.ProcessGrou
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
-		scanned := machine.ScanSwap(ctx, m, groups, cfg.Settings.SwapScanProcs)
+		scanned := scanSwapFunc(ctx, m, groups, cfg.Settings.SwapScanProcs)
 		return swapScanMsg{machineName: m.Name, groups: scanned}
 	}
 }

@@ -79,4 +79,28 @@ final class StatusItemControllerIconStateTests: XCTestCase {
         let snap = snapshot([])
         XCTAssertEqual(StatusItemController.iconState(snapshot: snap, error: nil), .normal)
     }
+
+    func testStatusTitleSummarizesOnlineAndCCCounts() {
+        let snap = snapshot([
+            machine(health: "free", status: "online"),
+            machine(health: "busy", status: "online"),
+            machine(health: "offline", status: "offline"),
+        ])
+        let withCounts = FleetSnapshot(
+            version: snap.version,
+            timestamp: snap.timestamp,
+            thresholds: snap.thresholds,
+            machines: [
+                MachineStatus(name: "mm1", status: "online", health: "free", memAvailablePct: 50, swapGB: 0, ccCount: 2, score: 10, accounts: [], labels: []),
+                MachineStatus(name: "mm2", status: "online", health: "busy", memAvailablePct: 25, swapGB: 1, ccCount: 1, score: 5, accounts: [], labels: []),
+                MachineStatus(name: "mm3", status: "offline", health: "", memAvailablePct: 0, swapGB: 0, ccCount: 0, score: 0, accounts: [], labels: []),
+            ],
+            sessions: []
+        )
+        XCTAssertEqual(StatusItemController.statusTitle(snapshot: withCounts), " 2/3 · 3 CC")
+    }
+
+    func testStatusTitleIsBlankBeforeFirstSnapshot() {
+        XCTAssertEqual(StatusItemController.statusTitle(snapshot: nil), "")
+    }
 }

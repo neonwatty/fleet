@@ -1,8 +1,8 @@
 package tunnel
 
 import (
+	"errors"
 	"net"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -106,26 +106,23 @@ func TestBuildSSHForwardArgsUsesConfiguredUser(t *testing.T) {
 	}
 }
 
-func TestStartFailsWhenSSHExitsDuringStartup(t *testing.T) {
-	dir := t.TempDir()
-	fakeSSH := filepath.Join(dir, "ssh")
-	if err := os.WriteFile(fakeSSH, []byte("#!/bin/bash\nexit 42\n"), 0755); err != nil {
-		t.Fatalf("write fake ssh: %v", err)
-	}
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+func TestStartReturnsCommandStartError(t *testing.T) {
+	orig := sshCommandPath
+	sshCommandPath = filepath.Join(t.TempDir(), "missing-ssh")
+	t.Cleanup(func() { sshCommandPath = orig })
 
-	_, err := Start(config.Machine{Name: "mm1", Host: "mm1"}, freePort(t), 3000)
-	if err == nil || !strings.Contains(err.Error(), "tunnel exited during startup") {
-		t.Fatalf("Start() error = %v, want startup exit error", err)
+	_, err := Start(config.Machine{Name: "mm1", Host: "mm1"}, 1, 3000)
+	if err == nil || !strings.Contains(err.Error(), "start tunnel") {
+		t.Fatalf("Start() error = %v, want start tunnel error", err)
 	}
 }
 
-func freePort(t *testing.T) int {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
+func TestVerifyStartedReturnsProcessExit(t *testing.T) {
+	done := make(chan error, 1)
+	done <- errors.New("exit status 42")
+
+	err := verifyStarted(done, 1)
+	if err == nil || !strings.Contains(err.Error(), "tunnel exited during startup") {
+		t.Fatalf("verifyStarted() error = %v, want startup exit error", err)
 	}
-	defer ln.Close() //nolint:errcheck
-	return ln.Addr().(*net.TCPAddr).Port
 }

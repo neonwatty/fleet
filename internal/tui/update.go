@@ -157,7 +157,7 @@ func (m model) handleOpenTunnel() (tea.Model, tea.Cmd) {
 	}
 	tunneled := tunneledSessions(m.state.Sessions)
 	if m.selectedRow < len(tunneled) {
-		_ = openInBrowser(tunneled[m.selectedRow].Tunnel.LocalPort)
+		_ = openBrowserFunc(tunneled[m.selectedRow].Tunnel.LocalPort)
 	}
 	return m, nil
 }
@@ -180,7 +180,7 @@ func (m model) performKillSession() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	sess := m.state.Sessions[m.selectedRow]
-	if err := killSession(context.Background(), m.cfg, sess, m.statePath); err != nil {
+	if err := killSessionFunc(context.Background(), m.cfg, sess, m.statePath); err != nil {
 		m.statusMessage = "Error: " + err.Error()
 		return m, nil
 	}
@@ -233,7 +233,7 @@ func (m model) performKillProcess() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	group := groups[m.selectedRow]
-	if err := machine.KillGroup(context.Background(), *mach, group); err != nil {
+	if err := killGroupFunc(context.Background(), *mach, group); err != nil {
 		m.statusMessage = "Error: " + err.Error()
 		return m, nil
 	}

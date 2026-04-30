@@ -7,7 +7,15 @@ import (
 	"runtime"
 
 	"github.com/neonwatty/fleet/internal/config"
+	"github.com/neonwatty/fleet/internal/machine"
 	"github.com/neonwatty/fleet/internal/session"
+)
+
+var (
+	killSessionFunc = killSession
+	openBrowserFunc = openInBrowser
+	killGroupFunc   = machine.KillGroup
+	scanSwapFunc    = machine.ScanSwap
 )
 
 func killSession(ctx context.Context, cfg *config.Config, sess session.Session, statePath string) error {

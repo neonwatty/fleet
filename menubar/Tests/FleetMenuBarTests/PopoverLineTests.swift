@@ -111,6 +111,17 @@ final class PopoverLineTests: XCTestCase {
         XCTAssertEqual(PopoverView.lastUpdatedText(timestamp: "not-a-date"), "Updated --")
     }
 
+    func testAppVersionTextUsesBundleShortVersion() {
+        XCTAssertEqual(
+            PopoverView.appVersionText(infoDictionary: ["CFBundleShortVersionString": "1.2.3"]),
+            "v1.2.3"
+        )
+    }
+
+    func testAppVersionTextFallsBackWhenMissing() {
+        XCTAssertEqual(PopoverView.appVersionText(infoDictionary: [:]), "v?")
+    }
+
     func testOpenFullDashboardCommandUsesOsascript() {
         let (path, args) = PopoverView.openFullDashboardCommand()
         XCTAssertEqual(path, "/usr/bin/osascript")
