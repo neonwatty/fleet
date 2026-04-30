@@ -197,13 +197,16 @@ Example machine entry:
 
 For lightweight agent/manual allocation, ask an agent to inspect
 `fleet status --json`, choose an `online` machine with good `score`, `health`,
-low `swap_gb`, and acceptable `cc_count`, then connect with the returned
-`ssh_target`. See [`docs/agent-usage.md`](docs/agent-usage.md) for the full
-field guide.
+low `swap_gb`, and acceptable `cc_count`, then connect with normal SSH using
+the returned `ssh_target` or your own SSH alias. Fleet does not need a custom
+SSH command for this. See [`docs/agent-usage.md`](docs/agent-usage.md) for the
+full field guide.
 
 ```bash
 fleet status --json
 ssh jeremywatt@mm2
+# or, if your SSH config defines the alias:
+ssh mm2
 ```
 
 If you want to inspect the same data yourself:
@@ -224,12 +227,18 @@ instruction like:
 ```text
 Use Fleet to choose a development machine. Run `fleet status --json`, inspect
 the machines list, choose an online machine with good health, high score, low
-swap_gb, and low cc_count, then use that machine's ssh_target to connect.
+swap_gb, and low cc_count, then use normal SSH with that machine's ssh_target
+or SSH alias to connect.
 Explain your choice before starting long-running work.
 ```
 
 For other app repos, copy the same instruction into that repo's `AGENTS.md` or
 `CLAUDE.md` so agents working there can discover Fleet without extra prompting.
+For sustained remote work, the most reliable flow is to choose the machine
+first, SSH into it, and start Claude Code or Codex from that remote shell.
+Mid-session switching can work for explicit `ssh host 'command'` calls, but many
+agent environments will not automatically move every future filesystem and shell
+operation to the remote machine.
 
 ### `fleet label`
 
