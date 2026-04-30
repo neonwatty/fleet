@@ -21,8 +21,8 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.26'
           cache: true
@@ -43,8 +43,8 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.26'
           cache: true
@@ -63,7 +63,7 @@ jobs:
             printf("coverage %.1f%% meets %.1f%% floor\n", total, min)
           }'
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage.out
@@ -73,8 +73,8 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.26'
           cache: true
@@ -90,8 +90,8 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.26'
           cache: true
@@ -102,7 +102,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Check file sizes
         run: |
           OVERSIZED=$(find . -name '*.go' -exec awk 'END { if (NR > 300) print FILENAME ": " NR " lines" }' {} \;)
@@ -116,8 +116,8 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.26'
           cache: true
@@ -130,7 +130,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install xcodegen
         run: brew install xcodegen
       - name: Run menubar Swift tests
