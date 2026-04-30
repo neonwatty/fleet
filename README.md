@@ -175,6 +175,40 @@ fleet status --json
 Each machine entry includes `ssh_target`, so agents and scripts can choose a
 machine from the current health data and directly run `ssh <ssh_target>`.
 
+Example machine entry:
+
+```json
+{
+  "name": "mm2",
+  "ssh_target": "jeremywatt@mm2",
+  "status": "online",
+  "mem_available_pct": 42,
+  "swap_gb": 0,
+  "cc_count": 0,
+  "score": 42.3,
+  "health": "free",
+  "accounts": [],
+  "labels": []
+}
+```
+
+For lightweight agent/manual allocation, ask an agent to inspect
+`fleet status --json`, choose an `online` machine with good `score`, `health`,
+low `swap_gb`, and acceptable `cc_count`, then connect with the returned
+`ssh_target`. See [`docs/agent-usage.md`](docs/agent-usage.md) for the full
+field guide.
+
+```bash
+fleet status --json
+ssh jeremywatt@mm2
+```
+
+If you want to inspect the same data yourself:
+
+```bash
+fleet status --json | jq '.machines[] | {name, ssh_target, status, health, score, mem_available_pct, swap_gb, cc_count}'
+```
+
 ### `fleet label`
 
 Manage user-chosen nicknames attached to Claude Code sessions on each machine. Labels survive remote restarts and render as "stale" in both the TUI and the menu bar when their linked session is gone.
