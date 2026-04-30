@@ -11,9 +11,10 @@ import (
 )
 
 func TestBuildStatusJSON(t *testing.T) {
+	const machineName = "mm1"
 	healths := []machine.Health{
 		{
-			Name:        "mm1",
+			Name:        machineName,
 			Online:      true,
 			TotalMemory: 16 * 1024 * 1024 * 1024,
 			AvailMemory: 4 * 1024 * 1024 * 1024,
@@ -37,7 +38,7 @@ func TestBuildStatusJSON(t *testing.T) {
 		},
 	}
 	labels := map[string][]session.MachineLabel{
-		"mm1": {
+		machineName: {
 			{Name: "bleep", SessionID: "a1b2c3", LastSeenPID: 4242},
 			{Name: "deckchecker", SessionID: ""},
 			{Name: "orphan-live", SessionID: "", LastSeenPID: 5555},
@@ -45,9 +46,9 @@ func TestBuildStatusJSON(t *testing.T) {
 			{Name: "ghost", SessionID: "dead-sess"}, // linked to removed session
 		},
 	}
-	ccPIDs := map[string][]int{"mm1": {4242, 5555}}
+	ccPIDs := map[string][]int{machineName: {4242, 5555}}
 	processGroups := map[string][]machine.ProcessGroup{
-		"mm1": {
+		machineName: {
 			{Name: "Claude Code", Count: 2, TotalRSS: 1536 * 1024, PIDs: []int{4242, 5555}},
 			{Name: "Codex", Count: 1, TotalRSS: 512 * 1024, PIDs: []int{7777}},
 		},
@@ -102,7 +103,7 @@ func TestBuildStatusJSON(t *testing.T) {
 	}
 	found := map[string]bool{}
 	for _, m := range doc2.Machines {
-		if m.Name == "mm1" {
+		if m.Name == machineName {
 			for _, l := range m.Labels {
 				found[l.Name] = l.Live
 			}
