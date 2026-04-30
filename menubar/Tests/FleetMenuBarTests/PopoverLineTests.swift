@@ -64,6 +64,10 @@ final class PopoverLineTests: XCTestCase {
         XCTAssertTrue(line.contains("jeremywatt@mm0"), "line = \(line)")
     }
 
+    func testSSHCommandPrefixesTarget() {
+        XCTAssertEqual(PopoverView.sshCommand("jeremywatt@mm0"), "ssh jeremywatt@mm0")
+    }
+
     func testRenderOnlineMachineIncludesAgentProcesses() {
         let m = machine(
             agentProcessesJSON: """

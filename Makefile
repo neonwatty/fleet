@@ -39,12 +39,12 @@ release-cli:
 	mkdir -p $(DIST_DIR)/$(DIST_NAME)/scripts
 	cp scripts/install.sh scripts/uninstall.sh $(DIST_DIR)/$(DIST_NAME)/scripts/
 	tar -C $(DIST_DIR) -czf $(DIST_DIR)/$(DIST_NAME).tar.gz $(DIST_NAME)
-	shasum -a 256 $(DIST_DIR)/$(DIST_NAME).tar.gz > $(DIST_DIR)/$(DIST_NAME).tar.gz.sha256
+	cd $(DIST_DIR) && shasum -a 256 $(DIST_NAME).tar.gz > $(DIST_NAME).tar.gz.sha256
 
 release-menubar: menubar-build
 	mkdir -p $(DIST_DIR)
 	cd menubar/build/Build/Products/Release && zip -qry ../../../../../$(DIST_DIR)/FleetMenuBar_$(VERSION)_darwin_arm64.zip FleetMenuBar.app
-	shasum -a 256 $(DIST_DIR)/FleetMenuBar_$(VERSION)_darwin_arm64.zip > $(DIST_DIR)/FleetMenuBar_$(VERSION)_darwin_arm64.zip.sha256
+	cd $(DIST_DIR) && shasum -a 256 FleetMenuBar_$(VERSION)_darwin_arm64.zip > FleetMenuBar_$(VERSION)_darwin_arm64.zip.sha256
 
 release-local: release-cli release-menubar
 
