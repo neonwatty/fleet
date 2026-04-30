@@ -105,6 +105,20 @@ struct PopoverView: View {
                 .foregroundStyle(.secondary)
             }
 
+            if let sshTarget = m.sshTarget, !sshTarget.isEmpty {
+                HStack(spacing: 6) {
+                    Text(sshTarget)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Button("Copy SSH") { Self.copyToPasteboard(sshTarget) }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             if let agentSummary = Self.agentProcessSummary(m.agentProcesses) {
                 Text(agentSummary)
                     .font(.system(size: 11))
@@ -203,6 +217,9 @@ struct PopoverView: View {
             return parts.joined(separator: " ")
         }
         parts.append(m.health)
+        if let sshTarget = m.sshTarget, !sshTarget.isEmpty {
+            parts.append(sshTarget)
+        }
         parts.append("\(m.memAvailablePct)% mem")
         parts.append("\(formatSwap(m.swapGB))GB swap")
         parts.append("\(m.ccCount) CC")
@@ -247,6 +264,11 @@ struct PopoverView: View {
 
     static func formatSwap(_ swapGB: Double) -> String {
         String(format: "%.1f", swapGB)
+    }
+
+    static func copyToPasteboard(_ value: String, pasteboard: NSPasteboard = .general) {
+        pasteboard.clearContents()
+        pasteboard.setString(value, forType: .string)
     }
 
     static func lastUpdatedText(timestamp: String) -> String {

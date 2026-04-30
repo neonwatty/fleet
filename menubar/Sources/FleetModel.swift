@@ -35,6 +35,7 @@ struct MachineStatus: Codable {
     // even if a custom init(from:) is added later and removes the synthesized one.
     init(
         name: String,
+        sshTarget: String? = nil,
         status: String,
         health: String,
         memAvailablePct: Int,
@@ -46,7 +47,7 @@ struct MachineStatus: Codable {
         agentProcesses: [AgentProcessStatus]? = nil
     ) {
         self.name = name
-        self.sshTarget = nil
+        self.sshTarget = sshTarget
         self.status = status
         self.health = health
         self.memAvailablePct = memAvailablePct
