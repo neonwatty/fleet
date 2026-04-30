@@ -172,6 +172,9 @@ Pass `--json` to emit fleet state as JSON instead of opening the TUI — used by
 fleet status --json
 ```
 
+Each machine entry includes `ssh_target`, so agents and scripts can choose a
+machine from the current health data and directly run `ssh <ssh_target>`.
+
 ### `fleet label`
 
 Manage user-chosen nicknames attached to Claude Code sessions on each machine. Labels survive remote restarts and render as "stale" in both the TUI and the menu bar when their linked session is gone.

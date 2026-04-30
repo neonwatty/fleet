@@ -20,6 +20,7 @@ struct Thresholds: Codable {
 
 struct MachineStatus: Codable {
     let name: String
+    let sshTarget: String?
     let status: String
     let health: String
     let memAvailablePct: Int
@@ -43,6 +44,7 @@ struct MachineStatus: Codable {
         labels: [LabelStatus]
     ) {
         self.name = name
+        self.sshTarget = nil
         self.status = status
         self.health = health
         self.memAvailablePct = memAvailablePct
@@ -55,6 +57,7 @@ struct MachineStatus: Codable {
 
     enum CodingKeys: String, CodingKey {
         case name, status, health, score, accounts, labels
+        case sshTarget = "ssh_target"
         case memAvailablePct = "mem_available_pct"
         case swapGB = "swap_gb"
         case ccCount = "cc_count"

@@ -8,6 +8,7 @@
   "machines": [
     {
       "name": "mm1",
+      "ssh_target": "neonwatty@mm1",
       "status": "online",
       "mem_available_pct": 22,
       "swap_gb": 9.1,
@@ -22,6 +23,7 @@
     },
     {
       "name": "mm2",
+      "ssh_target": "jeremywatt@mm2",
       "status": "online",
       "mem_available_pct": 45,
       "swap_gb": 2.4,
@@ -35,6 +37,7 @@
     },
     {
       "name": "mm3",
+      "ssh_target": "jeremywatt@mm3",
       "status": "offline",
       "mem_available_pct": 0,
       "swap_gb": 0,

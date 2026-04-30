@@ -48,7 +48,8 @@ func TestBuildStatusJSON(t *testing.T) {
 	ccPIDs := map[string][]int{"mm1": {4242, 5555}}
 
 	thresholds := thresholdConfig{SwapWarnMB: 1024, SwapHighMB: 4096}
-	doc := buildStatusJSON(healths, sessions, labels, ccPIDs, thresholds, time.Date(2026, 4, 12, 14, 32, 10, 0, time.UTC))
+	sshTargets := map[string]string{"mm1": "neonwatty@mm1", "mm2": "mm2"}
+	doc := buildStatusJSON(healths, sessions, labels, ccPIDs, sshTargets, thresholds, time.Date(2026, 4, 12, 14, 32, 10, 0, time.UTC))
 	blob, err := json.Marshal(doc)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -59,6 +60,7 @@ func TestBuildStatusJSON(t *testing.T) {
 		`"version":"1"`,
 		`"timestamp":"2026-04-12T14:32:10Z"`,
 		`"name":"mm1"`,
+		`"ssh_target":"neonwatty@mm1"`,
 		`"status":"online"`,
 		`"accounts":["personal-max"]`,
 		`"name":"bleep"`,
@@ -69,6 +71,7 @@ func TestBuildStatusJSON(t *testing.T) {
 		`"name":"orphan-dead"`,
 		`"name":"ghost"`,
 		`"name":"mm2"`,
+		`"ssh_target":"mm2"`,
 		`"status":"offline"`,
 		`"project":"neonwatty/bleep"`,
 		`"account":"personal-max"`,
