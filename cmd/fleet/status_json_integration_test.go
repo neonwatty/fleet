@@ -83,6 +83,9 @@ exit 0
 	if m.Name != "mm1" || m.Status != "online" || m.CCCount != 2 {
 		t.Fatalf("machine status = %+v, want online mm1 with 2 CC", m)
 	}
+	if m.SSHTarget != "me@mm1" {
+		t.Fatalf("SSHTarget = %q, want me@mm1", m.SSHTarget)
+	}
 	if len(m.Labels) != 1 || !m.Labels[0].Live {
 		t.Fatalf("labels = %+v, want live linked label", m.Labels)
 	}

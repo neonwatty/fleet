@@ -27,6 +27,7 @@ type thresholdConfig struct {
 
 type machineStatus struct {
 	Name        string        `json:"name"`
+	SSHTarget   string        `json:"ssh_target"`
 	Status      string        `json:"status"` // "online" | "offline"
 	MemAvailPct int           `json:"mem_available_pct"`
 	SwapGB      float64       `json:"swap_gb"`
@@ -61,6 +62,7 @@ func buildStatusJSON(
 	sessions []session.Session,
 	labels map[string][]session.MachineLabel,
 	ccPIDs map[string][]int,
+	sshTargets map[string]string,
 	thresholds thresholdConfig,
 	now time.Time,
 ) statusDoc {
@@ -79,9 +81,10 @@ func buildStatusJSON(
 
 	for _, h := range healths {
 		ms := machineStatus{
-			Name:     h.Name,
-			Accounts: accountsForMachine(h.Name, sessions),
-			Labels:   labelStatusList(labels[h.Name], ccPIDs[h.Name], liveSessionIDs),
+			Name:      h.Name,
+			SSHTarget: sshTargets[h.Name],
+			Accounts:  accountsForMachine(h.Name, sessions),
+			Labels:    labelStatusList(labels[h.Name], ccPIDs[h.Name], liveSessionIDs),
 		}
 		if !h.Online {
 			ms.Status = "offline"
@@ -151,6 +154,14 @@ func sessionLabelName(labels map[string][]session.MachineLabel, s session.Sessio
 	return ""
 }
 
+func sshTargetsByMachine(machines []config.Machine) map[string]string {
+	targets := make(map[string]string, len(machines))
+	for _, m := range machines {
+		targets[m.Name] = m.SSHTarget()
+	}
+	return targets
+}
+
 // runStatusJSON is called from the status command when --json is set.
 func runStatusJSON(cfg *config.Config, statePath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -177,7 +188,15 @@ func runStatusJSON(cfg *config.Config, statePath string) error {
 		SwapWarnMB: cfg.Settings.SwapWarnMB,
 		SwapHighMB: cfg.Settings.SwapHighMB,
 	}
-	doc := buildStatusJSON(healths, state.Sessions, state.MachineLabels, ccPIDs, thresholds, time.Now())
+	doc := buildStatusJSON(
+		healths,
+		state.Sessions,
+		state.MachineLabels,
+		ccPIDs,
+		sshTargetsByMachine(enabled),
+		thresholds,
+		time.Now(),
+	)
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
