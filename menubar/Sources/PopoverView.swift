@@ -38,7 +38,7 @@ struct PopoverView: View {
                 .foregroundStyle(.secondary)
             Spacer()
             VStack(alignment: .trailing, spacing: 1) {
-                Text("v0.1.0")
+                Text(Self.appVersionText())
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
                 if let snap = client.snapshot {
@@ -284,5 +284,12 @@ struct PopoverView: View {
         formatter.dateFormat = "HH:mm:ss"
         formatter.timeZone = .current
         return "Updated \(formatter.string(from: date))"
+    }
+
+    static func appVersionText(infoDictionary: [String: Any]? = Bundle.main.infoDictionary) -> String {
+        guard let version = infoDictionary?["CFBundleShortVersionString"] as? String, !version.isEmpty else {
+            return "v?"
+        }
+        return "v\(version)"
     }
 }

@@ -52,7 +52,10 @@ final class StatusItemController {
         )?.tinted(with: Self.tintColor(for: state))
         button.image = image
         button.contentTintColor = nil
-        button.attributedTitle = NSAttributedString()
+        button.attributedTitle = NSAttributedString(
+            string: Self.statusTitle(snapshot: snapshot),
+            attributes: [.foregroundColor: Self.tintColor(for: state)]
+        )
     }
 
     nonisolated static func iconState(snapshot: FleetSnapshot?, error: String?) -> IconState {
@@ -64,6 +67,16 @@ final class StatusItemController {
             return .allOffline
         }
         return .normal
+    }
+
+    nonisolated static func statusTitle(snapshot: FleetSnapshot?) -> String {
+        guard let snap = snapshot else {
+            return ""
+        }
+        let online = snap.machines.filter { $0.status == "online" }.count
+        let total = snap.machines.count
+        let cc = snap.machines.reduce(0) { $0 + $1.ccCount }
+        return " \(online)/\(total) · \(cc) CC"
     }
 
     private static func symbolName(for state: IconState) -> String {
