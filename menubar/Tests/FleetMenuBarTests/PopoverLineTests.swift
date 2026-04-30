@@ -13,13 +13,15 @@ final class PopoverLineTests: XCTestCase {
         swapGB: Double = 0.5,
         cc: Int = 1,
         accounts: [String] = [],
-        labels: [LabelStatus] = []
+        labels: [LabelStatus] = [],
+        agentProcessesJSON: String = "[]"
     ) -> MachineStatus {
         let json = """
         {
           "name":"\(name)","status":"\(status)","health":"\(health)",
           "mem_available_pct":\(memPct),"swap_gb":\(swapGB),"cc_count":\(cc),
-          "score":10,"accounts":\(accountsJSON(accounts)),"labels":[]
+          "score":10,"accounts":\(accountsJSON(accounts)),
+          "agent_processes":\(agentProcessesJSON),"labels":[]
         }
         """
         var m = try! JSONDecoder().decode(MachineStatus.self, from: Data(json.utf8))
@@ -46,6 +48,27 @@ final class PopoverLineTests: XCTestCase {
         XCTAssertTrue(line.contains("0.3GB swap"))
         XCTAssertTrue(line.contains("0 CC"))
         XCTAssertTrue(line.contains("free"))
+    }
+
+    func testRenderOnlineMachineIncludesAgentProcesses() {
+        let m = machine(
+            agentProcessesJSON: """
+            [
+              {"kind":"codex","count":1,"rss_mb":164,"pids":[40623]},
+              {"kind":"claude","count":2,"rss_mb":512,"pids":[100,101]}
+            ]
+            """
+        )
+        let line = PopoverView.renderMachineLine(m, thresholds: thresholds)
+        XCTAssertTrue(line.contains("Claude: 2"), "line = \(line)")
+        XCTAssertTrue(line.contains("Codex: 1"), "line = \(line)")
+    }
+
+    func testAgentProcessSummaryOmitsEmptyProcesses() {
+        let m = machine(agentProcessesJSON: """
+        [{"kind":"codex","count":0,"rss_mb":0,"pids":[]}]
+        """)
+        XCTAssertNil(PopoverView.agentProcessSummary(m.agentProcesses))
     }
 
     func testRenderIncludesAccountChip() {
@@ -109,7 +132,8 @@ extension MachineStatus {
             name: base.name, status: base.status, health: base.health,
             memAvailablePct: base.memAvailablePct, swapGB: base.swapGB,
             ccCount: base.ccCount, score: base.score,
-            accounts: base.accounts, labels: labels
+            accounts: base.accounts, labels: labels,
+            agentProcesses: base.agentProcesses
         )
     }
 }

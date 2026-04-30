@@ -105,6 +105,14 @@ struct PopoverView: View {
                 .foregroundStyle(.secondary)
             }
 
+            if let agentSummary = Self.agentProcessSummary(m.agentProcesses) {
+                Text(agentSummary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
             ForEach(m.labels, id: \.name) { l in
                 HStack(spacing: 6) {
                     Text(l.live ? "●" : "○")
@@ -198,7 +206,43 @@ struct PopoverView: View {
         parts.append("\(m.memAvailablePct)% mem")
         parts.append("\(formatSwap(m.swapGB))GB swap")
         parts.append("\(m.ccCount) CC")
+        if let agentSummary = agentProcessSummary(m.agentProcesses) {
+            parts.append(agentSummary)
+        }
         return parts.joined(separator: " ")
+    }
+
+    static func agentProcessSummary(_ processes: [AgentProcessStatus]?) -> String? {
+        guard let processes else {
+            return nil
+        }
+        let parts = processes
+            .filter { $0.count > 0 }
+            .sorted { agentProcessSortKey($0.kind) < agentProcessSortKey($1.kind) }
+            .map { "\(agentProcessLabel($0.kind)): \($0.count)" }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
+
+    private static func agentProcessLabel(_ kind: String) -> String {
+        switch kind {
+        case "claude":
+            return "Claude"
+        case "codex":
+            return "Codex"
+        default:
+            return kind
+        }
+    }
+
+    private static func agentProcessSortKey(_ kind: String) -> String {
+        switch kind {
+        case "claude":
+            return "0"
+        case "codex":
+            return "1"
+        default:
+            return "2-\(kind)"
+        }
     }
 
     static func formatSwap(_ swapGB: Double) -> String {
