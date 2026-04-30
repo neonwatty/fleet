@@ -19,6 +19,17 @@ This creates:
 - `dist/FleetMenuBar_VERSION_darwin_arm64.zip`
 - `dist/FleetMenuBar_VERSION_darwin_arm64.zip.sha256`
 
+To verify an already-published GitHub release the same way CI does:
+
+```sh
+scripts/verify-release-install.sh
+VERSION=v0.4.1 scripts/verify-release-install.sh
+```
+
+The script downloads the release assets, verifies the published checksums,
+installs into temporary directories, confirms `FleetMenuBar.app` is present, and
+runs `fleet doctor` against an isolated temporary home directory.
+
 ## GitHub Release
 
 Merge conventional commits to `main`:
