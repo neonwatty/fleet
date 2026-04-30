@@ -1,6 +1,7 @@
 # Build output
 bin/
 dist/
+node_modules/
 
 # Test artifacts
 coverage.out
