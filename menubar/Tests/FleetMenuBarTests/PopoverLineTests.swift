@@ -7,6 +7,7 @@ final class PopoverLineTests: XCTestCase {
 
     private func machine(
         name: String = "mm1",
+        sshTarget: String? = nil,
         status: String = "online",
         health: String = "ok",
         memPct: Int = 45,
@@ -18,7 +19,7 @@ final class PopoverLineTests: XCTestCase {
     ) -> MachineStatus {
         let json = """
         {
-          "name":"\(name)","status":"\(status)","health":"\(health)",
+          "name":"\(name)",\(sshTargetJSON(sshTarget))"status":"\(status)","health":"\(health)",
           "mem_available_pct":\(memPct),"swap_gb":\(swapGB),"cc_count":\(cc),
           "score":10,"accounts":\(accountsJSON(accounts)),
           "agent_processes":\(agentProcessesJSON),"labels":[]
@@ -32,6 +33,13 @@ final class PopoverLineTests: XCTestCase {
 
     private func accountsJSON(_ a: [String]) -> String {
         "[" + a.map { "\"\($0)\"" }.joined(separator: ",") + "]"
+    }
+
+    private func sshTargetJSON(_ sshTarget: String?) -> String {
+        guard let sshTarget else {
+            return ""
+        }
+        return "\"ssh_target\":\"\(sshTarget)\","
     }
 
     func testRenderOfflineMachine() {
@@ -48,6 +56,12 @@ final class PopoverLineTests: XCTestCase {
         XCTAssertTrue(line.contains("0.3GB swap"))
         XCTAssertTrue(line.contains("0 CC"))
         XCTAssertTrue(line.contains("free"))
+    }
+
+    func testRenderOnlineMachineIncludesSSHTarget() {
+        let m = machine(sshTarget: "jeremywatt@mm0", health: "free")
+        let line = PopoverView.renderMachineLine(m, thresholds: thresholds)
+        XCTAssertTrue(line.contains("jeremywatt@mm0"), "line = \(line)")
     }
 
     func testRenderOnlineMachineIncludesAgentProcesses() {
@@ -129,7 +143,8 @@ final class PopoverLineTests: XCTestCase {
 extension MachineStatus {
     init(copying base: MachineStatus, labels: [LabelStatus]) {
         self.init(
-            name: base.name, status: base.status, health: base.health,
+            name: base.name, sshTarget: base.sshTarget,
+            status: base.status, health: base.health,
             memAvailablePct: base.memAvailablePct, swapGB: base.swapGB,
             ccCount: base.ccCount, score: base.score,
             accounts: base.accounts, labels: labels,
