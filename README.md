@@ -209,6 +209,20 @@ If you want to inspect the same data yourself:
 fleet status --json | jq '.machines[] | {name, ssh_target, status, health, score, mem_available_pct, swap_gb, cc_count}'
 ```
 
+Agents will only know this workflow if it is in their context. When starting a
+new Claude Code or Codex chat, either point it at this README or give it a short
+instruction like:
+
+```text
+Use Fleet to choose a development machine. Run `fleet status --json`, inspect
+the machines list, choose an online machine with good health, high score, low
+swap_gb, and low cc_count, then use that machine's ssh_target to connect.
+Explain your choice before starting long-running work.
+```
+
+For other app repos, copy the same instruction into that repo's `AGENTS.md` or
+`CLAUDE.md` so agents working there can discover Fleet without extra prompting.
+
 ### `fleet label`
 
 Manage user-chosen nicknames attached to Claude Code sessions on each machine. Labels survive remote restarts and render as "stale" in both the TUI and the menu bar when their linked session is gone.
