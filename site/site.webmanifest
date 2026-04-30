@@ -1,0 +1,16 @@
+{
+  "name": "Fleet",
+  "short_name": "Fleet",
+  "description": "Local Mac fleet control for coding agents.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f7f9",
+  "theme_color": "#111317",
+  "icons": [
+    {
+      "src": "assets/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml"
+    }
+  ]
+}
