@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Fleet is a local Mac fleet control plane for running multiple coding-agent sessions with automatic placement, localhost-safe tunnels, and live visibility.">
+  <link rel="canonical" href="https://neonwatty.github.io/fleet/">
+  <meta property="og:title" content="Fleet - Local Mac fleet control for coding agents">
+  <meta property="og:description" content="Run more Claude Code and Codex-style sessions across your Macs without manually juggling SSH, memory pressure, tunnels, or cleanup.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://neonwatty.github.io/fleet/">
+  <meta property="og:image" content="https://neonwatty.github.io/fleet/assets/social-card.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Fleet - Local Mac fleet control for coding agents">
+  <meta name="twitter:description" content="Automatic placement, localhost-safe tunnels, and live visibility for coding-agent work across your Macs.">
+  <meta name="twitter:image" content="https://neonwatty.github.io/fleet/assets/social-card.png">
+  <title>Fleet - Local Mac fleet control for coding agents</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="#main" aria-label="Fleet home">
+      <span class="brand-mark">F</span>
+      <span>Fleet</span>
+    </a>
+    <nav aria-label="Primary navigation">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#use-cases">Use cases</a>
+      <a href="https://github.com/neonwatty/fleet">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Local Mac fleet control for coding agents</p>
+        <h1>Run more agent sessions across your Macs without babysitting SSH.</h1>
+        <p class="lede">
+          Fleet auto-picks the healthiest Mac, launches isolated worktrees, keeps remote dev servers reachable through localhost, and gives you a live dashboard for Claude Code and Codex-style workloads.
+        </p>
+        <div class="actions" aria-label="Primary actions">
+          <a class="button primary" href="https://github.com/neonwatty/fleet/releases/latest">Download latest release</a>
+          <a class="button secondary" href="https://github.com/neonwatty/fleet">View on GitHub</a>
+        </div>
+      </div>
+
+      <div class="product-shot" aria-label="Fleet dashboard and menu bar preview">
+        <div class="mac-strip">
+          <span class="mac-dot red"></span>
+          <span class="mac-dot yellow"></span>
+          <span class="mac-dot green"></span>
+          <span class="menu-spacer"></span>
+          <span class="fleet-pill"><span class="status-dot"></span>3/4 · 2 CC</span>
+        </div>
+        <div class="terminal">
+          <div class="terminal-title">Fleet Dashboard</div>
+          <div class="panel">
+            <div class="panel-title">Machines</div>
+            <div class="row head"><span>machine</span><span>health</span><span>mem</span><span>swap</span><span>agents</span></div>
+            <div class="row"><span>local</span><strong>free</strong><span>45%</span><span>0.0GB</span><span>1</span></div>
+            <div class="row"><span>mm1</span><strong>busy</strong><span>22%</span><span>2.1GB</span><span>2</span></div>
+            <div class="row"><span>mm2</span><strong>free</strong><span>57%</span><span>0.0GB</span><span>0</span></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">Tunnels</div>
+            <div class="tunnel-line">localhost:3000 -> mm2:3000 · neonwatty/web-app</div>
+            <div class="tunnel-line">localhost:4001 -> mm1:5173 · neonwatty/admin</div>
+          </div>
+          <div class="prompt">$ fleet launch neonwatty/my-project</div>
+          <div class="output">selected mm2 · cloned worktree · tunnel ready · starting claude</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section intro">
+      <p>
+        Fleet is built for the moment when one Mac is no longer enough for active coding-agent work, but a full cloud scheduler is the wrong shape. Your MacBook stays the control plane. Your Mac minis stay simple SSH targets.
+      </p>
+    </section>
+
+    <section id="how" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">How it works</p>
+        <h2>One command turns spare Macs into usable agent capacity.</h2>
+      </div>
+      <div class="steps">
+        <article>
+          <span class="step-number">1</span>
+          <h3>Probe the fleet</h3>
+          <p>Fleet checks online status, available memory, swap pressure, and current Claude Code or Codex process counts across configured machines.</p>
+        </article>
+        <article>
+          <span class="step-number">2</span>
+          <h3>Launch on the best target</h3>
+          <p>It creates or updates a bare clone, opens a fresh worktree, and starts the configured command on the chosen Mac.</p>
+        </article>
+        <article>
+          <span class="step-number">3</span>
+          <h3>Keep localhost working</h3>
+          <p>SSH tunnels map remote dev servers back to local ports, including pinned ports for OAuth callbacks that expect localhost.</p>
+        </article>
+      </div>
+      <figure class="wide-screenshot-card">
+        <img src="assets/fleet-dashboard.png" alt="Fleet terminal dashboard showing machine health, sessions, tunnels, and process groups.">
+        <figcaption>Live terminal dashboard with machine health, tunnel state, and process visibility.</figcaption>
+      </figure>
+    </section>
+
+    <section id="features" class="section split">
+      <div class="section-heading">
+        <p class="eyebrow">Visibility</p>
+        <h2>Know where every session is running.</h2>
+      </div>
+      <div class="feature-list">
+        <article>
+          <h3>Live TUI dashboard</h3>
+          <p>Track machines, sessions, tunnels, and heavyweight process groups from one terminal view.</p>
+        </article>
+        <article>
+          <h3>Native menu bar status</h3>
+          <p>See online machine count, active coding-agent sessions, labels, accounts, swap pressure, and SSH targets from macOS.</p>
+        </article>
+        <article>
+          <h3>Agent-readable JSON</h3>
+          <p>Let Claude Code, Codex, or scripts inspect capacity and choose an SSH target with <code>fleet status --json</code>.</p>
+        </article>
+        <article>
+          <h3>Clean session lifecycle</h3>
+          <p>Worktrees, tunnels, state, labels, and stale sessions are reconciled with <code>fleet clean</code> and <code>fleet doctor</code>.</p>
+        </article>
+      </div>
+      <figure class="screenshot-card">
+        <img src="assets/fleet-menubar.png" alt="Fleet menu bar popover showing machine health, swap, active agents, and SSH targets.">
+        <figcaption>Native macOS menu bar popover with live fleet health.</figcaption>
+      </figure>
+    </section>
+
+    <section id="install" class="section install">
+      <div>
+        <p class="eyebrow">Install</p>
+        <h2>Download the CLI, optionally add the menu bar app.</h2>
+        <p>
+          Fleet targets macOS and uses your existing SSH configuration. Release archives include installer and uninstaller scripts.
+        </p>
+      </div>
+      <div class="code-card">
+        <pre><code>tar -xzf fleet_VERSION_darwin_arm64.tar.gz
+cd fleet_VERSION_darwin_arm64
+scripts/install.sh
+
+fleet init
+fleet status</code></pre>
+      </div>
+    </section>
+
+    <section id="use-cases" class="section use-cases">
+      <div class="section-heading">
+        <p class="eyebrow">Use cases</p>
+        <h2>For developers turning nearby Macs into practical agent capacity.</h2>
+      </div>
+      <div class="feature-list">
+        <article>
+          <h3>Parallel agent work</h3>
+          <p>Start separate sessions across machines without manually checking Activity Monitor or remembering which host is overloaded.</p>
+        </article>
+        <article>
+          <h3>OAuth-heavy web apps</h3>
+          <p>Pin local tunnel ports so callbacks registered to <code>localhost:3000</code> keep working while the dev server runs remotely.</p>
+        </article>
+        <article>
+          <h3>Menu bar monitoring</h3>
+          <p>Keep fleet status visible while you work in other apps, then open the full dashboard when a machine needs attention.</p>
+        </article>
+        <article>
+          <h3>Agent placement instructions</h3>
+          <p>Expose <code>fleet status --json</code> so coding agents can explain their machine choice before starting long-running work.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section constraints">
+      <div class="section-heading">
+        <p class="eyebrow">Deliberately narrow</p>
+        <h2>Built for local Macs, SSH, and hands-on developer workflows.</h2>
+      </div>
+      <div class="constraint-grid">
+        <article>
+          <h3>No target daemon</h3>
+          <p>Fleet shells out to your system SSH setup. The remote Macs do not need a resident service.</p>
+        </article>
+        <article>
+          <h3>macOS first</h3>
+          <p>The probing, menu bar app, and release artifacts are designed around Apple Silicon Macs.</p>
+        </article>
+        <article>
+          <h3>Transparent state</h3>
+          <p>Config and session state live under <code>~/.fleet</code>, with dry-run cleanup and doctor commands for inspection.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>Fleet is MIT licensed.</span>
+    <a href="https://github.com/neonwatty/fleet/releases/latest">Releases</a>
+    <a href="https://github.com/neonwatty/fleet/blob/main/README.md">README</a>
+  </footer>
+</body>
+</html>

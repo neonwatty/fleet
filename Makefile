@@ -1,4 +1,4 @@
-.PHONY: lint test test-coverage build dist release-cli release-menubar release-local fmt vet check clean install
+.PHONY: lint test test-coverage build dist release-cli release-menubar release-local fmt vet check clean install validate-site
 
 SHELL := /bin/bash
 
@@ -56,6 +56,9 @@ vet:
 	go vet ./...
 
 check: fmt lint vet test menubar-test build
+
+validate-site:
+	scripts/validate-site.sh
 
 clean:
 	rm -rf $(BUILD_DIR)/ $(DIST_DIR)/ coverage.out
