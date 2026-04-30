@@ -29,6 +29,7 @@ struct MachineStatus: Codable {
     let score: Double
     let accounts: [String]
     let labels: [LabelStatus]
+    let agentProcesses: [AgentProcessStatus]?
 
     // Explicit memberwise init so test helpers can build instances by field,
     // even if a custom init(from:) is added later and removes the synthesized one.
@@ -41,7 +42,8 @@ struct MachineStatus: Codable {
         ccCount: Int,
         score: Double,
         accounts: [String],
-        labels: [LabelStatus]
+        labels: [LabelStatus],
+        agentProcesses: [AgentProcessStatus]? = nil
     ) {
         self.name = name
         self.sshTarget = nil
@@ -53,6 +55,7 @@ struct MachineStatus: Codable {
         self.score = score
         self.accounts = accounts
         self.labels = labels
+        self.agentProcesses = agentProcesses
     }
 
     enum CodingKeys: String, CodingKey {
@@ -61,6 +64,19 @@ struct MachineStatus: Codable {
         case memAvailablePct = "mem_available_pct"
         case swapGB = "swap_gb"
         case ccCount = "cc_count"
+        case agentProcesses = "agent_processes"
+    }
+}
+
+struct AgentProcessStatus: Codable {
+    let kind: String
+    let count: Int
+    let rssMB: Int
+    let pids: [Int]
+
+    enum CodingKeys: String, CodingKey {
+        case kind, count, pids
+        case rssMB = "rss_mb"
     }
 }
 

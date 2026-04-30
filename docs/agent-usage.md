@@ -22,6 +22,7 @@ agent allocation are:
 | `swap_gb` | Current swap usage in GiB |
 | `cc_count` | Detected Claude Code process count |
 | `accounts` | Account labels from active sessions |
+| `agent_processes` | Observed Claude Code/Codex process groups |
 | `labels` | User labels for live or remembered work on that machine |
 
 Example:
@@ -37,9 +38,17 @@ Example:
   "score": 42.3,
   "health": "free",
   "accounts": [],
+  "agent_processes": [
+    {"kind": "codex", "count": 1, "rss_mb": 512, "pids": [7777]}
+  ],
   "labels": []
 }
 ```
+
+`agent_processes` is intentionally observational. It summarizes matching
+processes discovered during Fleet's normal remote process scan, including work
+started manually over SSH. It does not mean Fleet launched or owns those
+processes.
 
 A simple agent instruction can stay high level:
 
@@ -50,7 +59,7 @@ For manual inspection:
 
 ```sh
 fleet status --json |
-  jq '.machines[] | {name, ssh_target, status, health, score, mem_available_pct, swap_gb, cc_count}'
+  jq '.machines[] | {name, ssh_target, status, health, score, mem_available_pct, swap_gb, cc_count, agent_processes}'
 ```
 
 Fleet intentionally does not need to pick the machine for the agent in this

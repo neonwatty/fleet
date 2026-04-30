@@ -188,6 +188,9 @@ Example machine entry:
   "score": 42.3,
   "health": "free",
   "accounts": [],
+  "agent_processes": [
+    {"kind": "codex", "count": 1, "rss_mb": 512, "pids": [7777]}
+  ],
   "labels": []
 }
 ```
@@ -206,8 +209,13 @@ ssh jeremywatt@mm2
 If you want to inspect the same data yourself:
 
 ```bash
-fleet status --json | jq '.machines[] | {name, ssh_target, status, health, score, mem_available_pct, swap_gb, cc_count}'
+fleet status --json | jq '.machines[] | {name, ssh_target, status, health, score, mem_available_pct, swap_gb, cc_count, agent_processes}'
 ```
+
+`agent_processes` is an observed, best-effort summary of Claude Code and Codex
+processes seen in the normal process scan. It is not a managed session ledger:
+processes started manually over SSH can appear there even if Fleet did not
+launch them.
 
 Agents will only know this workflow if it is in their context. When starting a
 new Claude Code or Codex chat, either point it at this README or give it a short

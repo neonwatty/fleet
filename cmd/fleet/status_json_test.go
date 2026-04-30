@@ -46,10 +46,16 @@ func TestBuildStatusJSON(t *testing.T) {
 		},
 	}
 	ccPIDs := map[string][]int{"mm1": {4242, 5555}}
+	processGroups := map[string][]machine.ProcessGroup{
+		"mm1": {
+			{Name: "Claude Code", Count: 2, TotalRSS: 1536 * 1024, PIDs: []int{4242, 5555}},
+			{Name: "Codex", Count: 1, TotalRSS: 512 * 1024, PIDs: []int{7777}},
+		},
+	}
 
 	thresholds := thresholdConfig{SwapWarnMB: 1024, SwapHighMB: 4096}
 	sshTargets := map[string]string{"mm1": "neonwatty@mm1", "mm2": "mm2"}
-	doc := buildStatusJSON(healths, sessions, labels, ccPIDs, sshTargets, thresholds, time.Date(2026, 4, 12, 14, 32, 10, 0, time.UTC))
+	doc := buildStatusJSON(healths, sessions, labels, ccPIDs, sshTargets, processGroups, thresholds, time.Date(2026, 4, 12, 14, 32, 10, 0, time.UTC))
 	blob, err := json.Marshal(doc)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -77,6 +83,7 @@ func TestBuildStatusJSON(t *testing.T) {
 		`"account":"personal-max"`,
 		`"launch_command":"claude --resume"`,
 		`"label":"bleep"`,
+		`"agent_processes":[{"kind":"claude","count":2,"rss_mb":1536,"pids":[4242,5555]},{"kind":"codex","count":1,"rss_mb":512,"pids":[7777]}]`,
 		`"swap_warn_mb":1024`,
 		`"swap_high_mb":4096`,
 	} {
