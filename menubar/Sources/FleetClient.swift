@@ -21,12 +21,16 @@ final class FleetClient: ObservableObject {
         binaryPath: String,
         configPath: String = "",
         statePath: String = "",
-        refreshInterval: TimeInterval = 10
+        refreshInterval: TimeInterval = 10,
+        initialSnapshot: FleetSnapshot? = nil,
+        initialError: String? = nil
     ) {
         self.binaryPath = binaryPath
         self.configPath = configPath
         self.statePath = statePath
         self.refreshInterval = refreshInterval
+        self.snapshot = initialSnapshot
+        self.lastError = initialError
     }
 
     func start() {
