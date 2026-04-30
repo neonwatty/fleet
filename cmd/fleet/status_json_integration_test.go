@@ -33,7 +33,7 @@ OUT
   exit 0
 fi
 if [[ "$cmd" == *"ps -eo rss,pid,command"* ]]; then
-  printf '2048 4242 claude\n1024 5000 node vite\n'
+  printf '2048 4242 claude\n1536 4300 codex --ask-for-approval never\n1024 5000 node vite\n'
   exit 0
 fi
 exit 0
@@ -88,6 +88,9 @@ exit 0
 	}
 	if len(m.Labels) != 1 || !m.Labels[0].Live {
 		t.Fatalf("labels = %+v, want live linked label", m.Labels)
+	}
+	if len(m.AgentProcesses) != 2 {
+		t.Fatalf("AgentProcesses = %+v, want claude and codex", m.AgentProcesses)
 	}
 }
 

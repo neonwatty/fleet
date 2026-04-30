@@ -13,6 +13,7 @@ const fixturePS = `631 19648 next-server (v15.5.14)
 139 21077 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd
 128 9406 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 98 16831 claude --dangerously-skip-permissions --resume
+96 17777 /opt/homebrew/bin/codex --sandbox workspace-write
 79 55983 /Applications/Docker.app/Contents/MacOS/com.docker.build
 72 45850 node /Users/neonwatty/.npm/_npx/node_modules/.bin/playwright-mcp
 67 849 /System/Library/Frameworks/CoreServices.framework/mds_stores
@@ -39,6 +40,14 @@ func TestClassifyProcesses(t *testing.T) {
 	}
 	if claude.Count != 2 {
 		t.Errorf("Claude Code count = %d, want 2", claude.Count)
+	}
+
+	codex := findGroup(groups, "Codex")
+	if codex == nil {
+		t.Fatal("expected Codex group")
+	}
+	if codex.Count != 1 {
+		t.Errorf("Codex count = %d, want 1", codex.Count)
 	}
 
 	chrome := findGroup(groups, "Chrome")

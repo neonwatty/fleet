@@ -16,6 +16,10 @@
       "score": 5,
       "health": "busy",
       "accounts": ["personal-max"],
+      "agent_processes": [
+        {"kind": "claude", "count": 2, "rss_mb": 1536, "pids": [4242, 5555]},
+        {"kind": "codex", "count": 1, "rss_mb": 512, "pids": [7777]}
+      ],
       "labels": [
         {"name": "bleep", "live": true, "session_id": "a1b2c3"},
         {"name": "deckchecker", "live": false, "session_id": ""}
@@ -31,6 +35,7 @@
       "score": 32,
       "health": "free",
       "accounts": ["work-team"],
+      "agent_processes": [],
       "labels": [
         {"name": "seatify", "live": true, "session_id": "d4e5f6"}
       ]
@@ -45,6 +50,7 @@
       "score": -1000,
       "health": "offline",
       "accounts": [],
+      "agent_processes": [],
       "labels": []
     }
   ],

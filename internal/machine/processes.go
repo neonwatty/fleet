@@ -188,6 +188,7 @@ func ClassifyProcesses(procs []Process) []ProcessGroup {
 
 	groups := map[string]*ProcessGroup{
 		"Claude Code": {Name: "Claude Code", Killable: true, TotalSwap: -1},
+		"Codex":       {Name: "Codex", Killable: true, TotalSwap: -1},
 		"Dev Servers": {Name: "Dev Servers", Killable: true, TotalSwap: -1},
 		"Chrome":      {Name: "Chrome", Killable: true, TotalSwap: -1},
 		"Docker":      {Name: "Docker", Killable: true, TotalSwap: -1},
@@ -199,6 +200,11 @@ func ClassifyProcesses(procs []Process) []ProcessGroup {
 		switch {
 		case isClaudeCode(cmd):
 			g := groups["Claude Code"]
+			g.Count++
+			g.TotalRSS += p.RSSKB
+			g.PIDs = append(g.PIDs, p.PID)
+		case isCodex(cmd):
+			g := groups["Codex"]
 			g.Count++
 			g.TotalRSS += p.RSSKB
 			g.PIDs = append(g.PIDs, p.PID)
@@ -241,7 +247,16 @@ func ClassifyProcesses(procs []Process) []ProcessGroup {
 }
 
 func isClaudeCode(cmd string) bool {
-	return strings.HasPrefix(cmd, "claude ") || cmd == "claude"
+	return isCommandNamed(cmd, "claude")
+}
+
+func isCodex(cmd string) bool {
+	return isCommandNamed(cmd, "codex")
+}
+
+func isCommandNamed(cmd, name string) bool {
+	fields := strings.Fields(cmd)
+	return len(fields) > 0 && (fields[0] == name || strings.HasSuffix(fields[0], "/"+name))
 }
 
 func isDevServer(cmd string) bool {
