@@ -112,7 +112,7 @@ struct PopoverView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    Button("Copy SSH") { Self.copyToPasteboard(sshTarget) }
+                    Button("Copy SSH") { Self.copyToPasteboard(Self.sshCommand(sshTarget)) }
                         .buttonStyle(.plain)
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
@@ -269,6 +269,10 @@ struct PopoverView: View {
     static func copyToPasteboard(_ value: String, pasteboard: NSPasteboard = .general) {
         pasteboard.clearContents()
         pasteboard.setString(value, forType: .string)
+    }
+
+    static func sshCommand(_ target: String) -> String {
+        "ssh \(target)"
     }
 
     static func lastUpdatedText(timestamp: String) -> String {

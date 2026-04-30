@@ -9,7 +9,7 @@ packaged artifacts.
 
 ```sh
 make release-local VERSION=0.1.0
-shasum -c dist/*.sha256
+(cd dist && shasum -c *.sha256)
 ```
 
 This creates:
@@ -45,7 +45,8 @@ is also documented here and in the README:
 
 - Download `fleet_VERSION_darwin_arm64.tar.gz` and, when installing the menu
   bar app too, `FleetMenuBar_VERSION_darwin_arm64.zip` into the same directory.
-- Verify downloads with the matching `.sha256` files.
+- Verify downloads with the matching `.sha256` files from the download
+  directory: `shasum -c *.sha256`.
 - Extract the CLI archive and run `scripts/install.sh`. The installer copies
   `fleet` to `/opt/homebrew/bin`, initializes `~/.fleet` when needed, and
   installs `FleetMenuBar.app` when it finds the menu bar zip next to the

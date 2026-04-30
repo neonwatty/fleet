@@ -43,4 +43,6 @@ xcrun notarytool submit "$ZIP_PATH" \
 
 xcrun stapler staple "$APP_PATH"
 ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
-shasum -a 256 "$ZIP_PATH" > "$ZIP_PATH.sha256"
+ZIP_DIR="$(dirname "$ZIP_PATH")"
+ZIP_FILE="$(basename "$ZIP_PATH")"
+(cd "$ZIP_DIR" && shasum -a 256 "$ZIP_FILE" > "$ZIP_FILE.sha256")
