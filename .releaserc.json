@@ -1,0 +1,25 @@
+{
+  "branches": ["main"],
+  "tagFormat": "v${version}",
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "scripts/semantic-release-prepare.sh ${nextRelease.version}"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          "dist/*.tar.gz",
+          "dist/*.tar.gz.sha256",
+          "dist/*.zip",
+          "dist/*.zip.sha256"
+        ]
+      }
+    ]
+  ]
+}

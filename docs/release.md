@@ -1,6 +1,9 @@
 # Release Checklist
 
-Fleet release artifacts are produced from Git tags named `v*`.
+Fleet releases are produced by semantic-release when conventional commits land
+on `main`. semantic-release determines the next version from commits since the
+latest `v*` tag, creates the tag, creates the GitHub release, and uploads the
+packaged artifacts.
 
 ## Local Dry Run
 
@@ -18,23 +21,27 @@ This creates:
 
 ## GitHub Release
 
-```sh
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Release candidate tags use the same workflow and are published as GitHub
-prereleases automatically:
+Merge conventional commits to `main`:
 
 ```sh
-git tag v0.1.0-rc4
-git push origin v0.1.0-rc4
+feat: add machine-readable process telemetry
+fix: avoid stale state lock cleanup
+feat!: change status JSON schema
 ```
 
-The release workflow runs Go tests, menu bar tests, packages the CLI and menu
-bar app, and uploads checksummed artifacts to the GitHub release.
+semantic-release maps commits to versions:
 
-Release notes include generated GitHub changes plus concise install guidance:
+- `fix:` creates a patch release.
+- `feat:` creates a minor release.
+- `feat!:` or `BREAKING CHANGE:` creates a major release.
+- `docs:`, `test:`, `chore:`, and similar commits do not release by default.
+
+The release workflow runs Go tests, menu bar tests, lets semantic-release choose
+the version, packages the CLI and menu bar app, and uploads checksummed
+artifacts to the GitHub release.
+
+GitHub release notes are generated from conventional commits. Install guidance
+is also documented here and in the README:
 
 - Download `fleet_VERSION_darwin_arm64.tar.gz` and, when installing the menu
   bar app too, `FleetMenuBar_VERSION_darwin_arm64.zip` into the same directory.
