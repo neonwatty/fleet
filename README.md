@@ -1,5 +1,7 @@
 # Fleet
 
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-7289da?style=flat&logo=discord&logoColor=white)](https://discord.gg/7xsxU4ZG6A)
+
 A CLI for distributing Claude Code instances across a local Mac fleet. Auto-picks the healthiest machine, sets up SSH tunnels for dev servers (so OAuth callbacks work), and provides a live TUI dashboard.
 
 Website: https://neonwatty.github.io/fleet/
