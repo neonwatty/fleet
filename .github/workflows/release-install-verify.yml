@@ -29,6 +29,6 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       VERSION: ${{ github.event.inputs.version || 'latest' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Verify published release install
         run: scripts/verify-release-install.sh
