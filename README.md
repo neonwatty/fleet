@@ -4,7 +4,7 @@
 
 A CLI for distributing Claude Code instances across a local Mac fleet. Auto-picks the healthiest machine, sets up SSH tunnels for dev servers (so OAuth callbacks work), and provides a live TUI dashboard.
 
-Website: https://neonwatty.github.io/fleet/
+Website: https://fleet.neonwatty.com/
 
 ```
                     ┌─────────────────────────┐
